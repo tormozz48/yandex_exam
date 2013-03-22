@@ -1,0 +1,32 @@
+html, body{
+	overflow: hidden;
+	background-color: #fff;
+
+	position: relative;
+}
+
+table{
+	width: 100%;
+}
+
+table td{
+	text-align: center;
+	vertical-align: middle;
+}
+
+.large-image{
+		
+}
+
+.thumbnails-wrapper{
+	height: 100px;
+
+	position: absolute;
+	bottom: 0;
+
+	background-color: #ddd;
+}
+
+.non-visible{
+	visibility: hidden;
+}
