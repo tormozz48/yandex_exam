@@ -1,5 +1,4 @@
 jQuery(document).ready(function(){
-	console.log('gallery initialize start');
 	new Gallery({
 		url: 'http://api-fotki.yandex.ru/api/top/',
 		order: 'updated',
@@ -11,23 +10,23 @@ Gallery = function(config){
 	this.init(config);
 };
 
-Image = function(w,h){
-	this.width = w;
-	this.height = h;
-};	
+// Image = function(w,h){
+// 	this.width = w;
+// 	this.height = h;
+// };	
 
-Image.prototype = {
-	width: null,
-	height: null,
+// Image.prototype = {
+// 	width: null,
+// 	height: null,
 
-	get_width: function(){
-		return this.width;
-	},
+// 	get_width: function(){
+// 		return this.width;
+// 	},
 
-	get_height: function(){
-		return this.height;
-	}
-};
+// 	get_height: function(){
+// 		return this.height;
+// 	}
+// };
 
 Gallery.prototype = {
 	config: null,
@@ -45,54 +44,55 @@ Gallery.prototype = {
 		// 	self.window_resize_handler();
 		// });
 
+		console.log('-- gallery initialize start --');
 		this.data_source = new DataSource((this.config != undefined && this.config != null) ? this.config : {});
 	},
 
-	draw_image: function(){
-		var img = jQuery('.large-image');
-		this.image = new Image(img.width(), img.height()); 
+	// draw_image: function(){
+	// 	var img = jQuery('.large-image');
+	// 	this.image = new Image(img.width(), img.height()); 
 
-		this.window_resize_handler();
+	// 	this.window_resize_handler();
 
-		this.show_image();
-	},
+	// 	this.show_image();
+	// },
 
-	window_resize_handler: function(){
-		var img = jQuery('.large-image');
+	// window_resize_handler: function(){
+	// 	var img = jQuery('.large-image');
 
-		var w = jQuery(window).width(); //window width
-		var dw = this.image.get_width(); //original image width
+	// 	var w = jQuery(window).width(); //window width
+	// 	var dw = this.image.get_width(); //original image width
 		
-		var h = jQuery(window).height(); //window height
-		var dh = this.image.get_height(); //original image height
+	// 	var h = jQuery(window).height(); //window height
+	// 	var dh = this.image.get_height(); //original image height
 
-		var ar = dw/dh; //image aspect ratio
+	// 	var ar = dw/dh; //image aspect ratio
 
-		//resize image if it necessary
-		if(w < dw || h < dh){
-			if (w/h > ar){
-				img.height(h);
-            	img.width(h * ar);
-			}else{
-				img.width(w);
-            	img.height(w / ar);
-			}
-		}
+	// 	//resize image if it necessary
+	// 	if(w < dw || h < dh){
+	// 		if (w/h > ar){
+	// 			img.height(h);
+ //            	img.width(h * ar);
+	// 		}else{
+	// 			img.width(w);
+ //            	img.height(w / ar);
+	// 		}
+	// 	}
 
-		//center image on horizontal and vertical dimensions
-		img.css('margin-left', ((jQuery(window).width() - img.width())/2) + 'px');
-		img.css('margin-top', ((jQuery(window).height() - img.height())/2) + 'px');
-	},
+	// 	//center image on horizontal and vertical dimensions
+	// 	img.css('margin-left', ((jQuery(window).width() - img.width())/2) + 'px');
+	// 	img.css('margin-top', ((jQuery(window).height() - img.height())/2) + 'px');
+	// },
 
 	//show image by removing non-visible class from it
-	show_image: function(){
-		jQuery('.large-image').removeClass('non-visible'); 	
-	},
+	// show_image: function(){
+	// 	jQuery('.large-image').removeClass('non-visible'); 	
+	// },
 
-	//hide image by adding non-visible class to it
-	hide_image: function(){
-		jQuery('.large-image').addClass('non-visible');	
-	}
+	// //hide image by adding non-visible class to it
+	// hide_image: function(){
+	// 	jQuery('.large-image').addClass('non-visible');	
+	// }
 },
 
 DataSource = function(config){
@@ -119,6 +119,8 @@ DataSource.prototype = {
 	},
 
 	create_url: function(){
+		console.log('-- create url start --')
+
 		var url = null;
 
 		//get url from config or set default url
@@ -161,8 +163,55 @@ DataSource.prototype = {
 	},
 
 	parse_data: function(response){
+		console.log('-- data has been received from API --');
 		console.log(response.title);
 		console.log(response.id);
 		console.log(response.updated);
+
+		var l = response.entries.length;
+
+		if(l > 0){
+			this.images = new Array();
+			for(var i = 0; i < l; i++){
+				this.images[i] = new Image(response.entries[i].id, response.entries[i].img);
+			}
+			console.log('-- images have been placed into collection --');
+			console.log('images length = ' + this.images.length);
+		}else{
+			console.log('-- no images were received from API --');
+		}
+	}
+};
+
+Image = function(id, sizes){
+	this.init(id, sizes);
+};
+
+Image.prototype = {
+	
+	id: null,
+	sizes: null,
+
+	AVAILABLE_SIZES: {XXXS: 'XXXS', XXS : 'XXS', XS: 'XS', S: 'S', M: 'M', L: 'L', XL: 'XL', XXL: 'XXL', XXXL: 'XXXL'},
+
+	init: function(id, sizes){
+		this.id = id;
+		this.sizes = sizes;
+	},
+
+	get_by_size: function(size){
+		return this.sizes[this.AVAILABLE_SIZES[size]];
+	},
+
+	get_width_by_size: function(size){
+		return this.get_by_size(size).width;
+	},
+
+	get_height_by_size: function(size){
+		return this.get_by_size(size).height;
+	},
+
+	get_href_by_size: function(size){
+		return this.get_by_size(size).href;
 	}
 };
