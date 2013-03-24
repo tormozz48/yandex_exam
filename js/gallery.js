@@ -12,24 +12,6 @@ Gallery = function(config){
 	this.init(config);
 };
 
-// Image = function(w,h){
-// 	this.width = w;
-// 	this.height = h;
-// };	
-
-// Image.prototype = {
-// 	width: null,
-// 	height: null,
-
-// 	get_width: function(){
-// 		return this.width;
-// 	},
-
-// 	get_height: function(){
-// 		return this.height;
-// 	}
-// };
-
 Gallery.prototype = {
 	DEFAULT_THUMBNAIL_SIZE: 'XXS',
 	DEFAULT_IMAGE_SIZE: 'M',
@@ -42,12 +24,8 @@ Gallery.prototype = {
 
 	thumbnails_hidden: true,
 
-	// image: null,
-
-	//image_wrapper: jQuery('.large-image-wrapper'),
-
 	init: function(config){
-		this.config = config;
+		this.config = (config != undefined && config != null) ? config : {};
 		
 		if(this.config.thumbnail_size == undefined || this.config.thumbnail_size == null){
 			this.config.thumbnail_size = this.DEFAULT_THUMBNAIL_SIZE;
@@ -56,12 +34,6 @@ Gallery.prototype = {
 		if(this.config.image_size == undefined || this.config.thumbnail_size == null){
 			this.config.image_size = this.DEFAULT_IMAGE_SIZE;
 		}
-
-		// this.draw_image();
-		// var self = this;
-		// jQuery(window).resize(function(){
-		// 	self.window_resize_handler();
-		// });
 
 		console.log('-- gallery initialize start --');
 		var self = this;
@@ -87,6 +59,8 @@ Gallery.prototype = {
 			for(var i = 0; i < l; i++){
 				jQuery('<img/>')
 				.attr('src', images[i].get_by_size(this.config.thumbnail_size).href)
+				.attr('data-id', images[i].id)
+				.attr('data-index', i)
 				.css({
 					'width': images[i].get_by_size(this.config.thumbnail_size).width,
 					'height': images[i].get_by_size(this.config.thumbnail_size).height,
@@ -106,6 +80,12 @@ Gallery.prototype = {
 					self.hide_thumbnails_wrapper();
 				}
 			});
+
+			jQuery('.thumbnails-image').on('click', function(){
+				self.switch_image(jQuery(this).attr('data-index'));
+			});
+
+			this.bind_scrollable();
 		}
 	},
 
@@ -128,53 +108,56 @@ Gallery.prototype = {
     			bottom: 0,
   			}, 300);
 		}	
-	}
+	},
 
-	// draw_image: function(){
-	// 	var img = jQuery('.large-image');
-	// 	this.image = new Image(img.width(), img.height()); 
+	switch_image: function(index){
+		console.log('-- switch image --');
+		console.log('image index = ' + index);
 
-	// 	this.window_resize_handler();
-
-	// 	this.show_image();
-	// },
-
-	// window_resize_handler: function(){
-	// 	var img = jQuery('.large-image');
-
-	// 	var w = jQuery(window).width(); //window width
-	// 	var dw = this.image.get_width(); //original image width
+		jQuery('.thumbnails-image').removeClass('thumbnails-image-active');
 		
-	// 	var h = jQuery(window).height(); //window height
-	// 	var dh = this.image.get_height(); //original image height
+		jQuery('[data-index="'+index+'"]').addClass('thumbnails-image-active');
 
-	// 	var ar = dw/dh; //image aspect ratio
+		jQuery('.thumbnails-wrapper').scrollTo('[data-index="'+index+'"]', 400);
 
-	// 	//resize image if it necessary
-	// 	if(w < dw || h < dh){
-	// 		if (w/h > ar){
-	// 			img.height(h);
- //            	img.width(h * ar);
-	// 		}else{
-	// 			img.width(w);
- //            	img.height(w / ar);
-	// 		}
-	// 	}
+   		// var iLeft = jQuery('[data-index="'+index+'"]').offset().left;
+   		//jQuery('.thumbnails-wrapper').scrollTo(iLeft+'px', 400);
+	},
 
-	// 	//center image on horizontal and vertical dimensions
-	// 	img.css('margin-left', ((jQuery(window).width() - img.width())/2) + 'px');
-	// 	img.css('margin-top', ((jQuery(window).height() - img.height())/2) + 'px');
-	// },
+	/**
+	* This is not my solution
+	* thanks to http://www.adomas.org/javascript-mouse-wheel/
+	**/
+	bind_scrollable: function(){
+		if (window.addEventListener){
+        	window.addEventListener('DOMMouseScroll', this.on_thumbnails_scroll, false);
+        }	
+		window.onmousewheel = document.onmousewheel = this.on_thumbnails_scroll;
+	},
 
-	//show image by removing non-visible class from it
-	// show_image: function(){
-	// 	jQuery('.large-image').removeClass('non-visible'); 	
-	// },
-
-	// //hide image by adding non-visible class to it
-	// hide_image: function(){
-	// 	jQuery('.large-image').addClass('non-visible');	
-	// }
+	/**
+	* This is not my solution
+	* thanks to http://www.adomas.org/javascript-mouse-wheel/
+	**/
+	on_thumbnails_scroll: function(event){
+		var delta = 0;
+        if(!event){
+                event = window.event;
+        }        
+        if(event.wheelDelta) { 
+                delta = event.wheelDelta/120;
+        }else if (event.detail) {
+                delta = -event.detail/3;
+        }
+        
+        if(delta){
+                jQuery('.thumbnails-wrapper').scrollTo(delta > 0 ? '+=50px' : '-=50px', 30);
+        }        
+        if(event.preventDefault){
+                event.preventDefault();
+        }        
+		event.returnValue = false;
+	}
 },
 
 DataSource = function(config){
@@ -265,6 +248,19 @@ DataSource.prototype = {
 
 		deferred.resolve();
 		return deferred.promise();
+	},
+
+	get_index_by_id: function(id){
+		var index = -1;
+		if(this.images != null, this.images.length > 0){
+			for(var i = 0, l = this.images.length; i < l; i++){
+				if(this.images[i].id === id){
+					index = i;
+					break;
+				}
+			}
+		}
+		return index;
 	}
 };
 
@@ -286,3 +282,49 @@ Image.prototype = {
 		return this.sizes[size];
 	}
 };
+
+// draw_image: function(){
+	// 	var img = jQuery('.large-image');
+	// 	this.image = new Image(img.width(), img.height()); 
+
+	// 	this.window_resize_handler();
+
+	// 	this.show_image();
+	// },
+
+	// window_resize_handler: function(){
+	// 	var img = jQuery('.large-image');
+
+	// 	var w = jQuery(window).width(); //window width
+	// 	var dw = this.image.get_width(); //original image width
+		
+	// 	var h = jQuery(window).height(); //window height
+	// 	var dh = this.image.get_height(); //original image height
+
+	// 	var ar = dw/dh; //image aspect ratio
+
+	// 	//resize image if it necessary
+	// 	if(w < dw || h < dh){
+	// 		if (w/h > ar){
+	// 			img.height(h);
+ //            	img.width(h * ar);
+	// 		}else{
+	// 			img.width(w);
+ //            	img.height(w / ar);
+	// 		}
+	// 	}
+
+	// 	//center image on horizontal and vertical dimensions
+	// 	img.css('margin-left', ((jQuery(window).width() - img.width())/2) + 'px');
+	// 	img.css('margin-top', ((jQuery(window).height() - img.height())/2) + 'px');
+	// },
+
+	//show image by removing non-visible class from it
+	// show_image: function(){
+	// 	jQuery('.large-image').removeClass('non-visible'); 	
+	// },
+
+	// //hide image by adding non-visible class to it
+	// hide_image: function(){
+	// 	jQuery('.large-image').addClass('non-visible');	
+	// }
