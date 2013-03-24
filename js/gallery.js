@@ -45,8 +45,35 @@ Gallery.prototype = {
 		// });
 
 		console.log('-- gallery initialize start --');
+		var self = this;
 		this.data_source = new DataSource((this.config != undefined && this.config != null) ? this.config : {});
+		
+		var ds = this.data_source
+		ds.load_data().done(function(response) { 
+			ds.parse_data(response).done(function(){
+				self.draw_thumbnails();
+			}); 
+		});
 	},
+
+	draw_thumbnails: function(){
+		var thumbnail_wrapper = jQuery('<div/>', {class: 'thumbnails-wrapper'});
+		thumbnail_wrapper.appendTo('body');
+
+		var images = this.data_source.images;
+		var l = images.length;
+
+		if(l > 0){
+			for(var i = 0; i < l; i++){
+				jQuery('<img/>')
+				.attr('src', images[i].get_href_by_size('XXS'))
+				.css({
+					'width': images[i].get_width_by_size('XXS'),
+					'height': images[i].get_height_by_size('XXS'),
+				}).addClass('thumbnails-image').appendTo(thumbnail_wrapper);
+			}
+		}
+	}
 
 	// draw_image: function(){
 	// 	var img = jQuery('.large-image');
@@ -115,7 +142,7 @@ DataSource.prototype = {
 
 	init: function(config){
 		this.config = config;
-		this.load_data();
+		//this.load_data();
 	},
 
 	create_url: function(){
@@ -158,8 +185,7 @@ DataSource.prototype = {
 	},
 
 	load_data: function(){
-		var self = this;
-		jQuery.getJSON(this.create_url()).done(function(response) { self.parse_data(response) });
+		return jQuery.getJSON(this.create_url())
 	},
 
 	parse_data: function(response){
@@ -168,6 +194,7 @@ DataSource.prototype = {
 		console.log(response.id);
 		console.log(response.updated);
 
+		var deferred = jQuery.Deferred(); 
 		var l = response.entries.length;
 
 		if(l > 0){
@@ -180,6 +207,9 @@ DataSource.prototype = {
 		}else{
 			console.log('-- no images were received from API --');
 		}
+
+		deferred.resolve();
+		return deferred.promise();
 	}
 };
 
@@ -192,7 +222,7 @@ Image.prototype = {
 	id: null,
 	sizes: null,
 
-	AVAILABLE_SIZES: {XXXS: 'XXXS', XXS : 'XXS', XS: 'XS', S: 'S', M: 'M', L: 'L', XL: 'XL', XXL: 'XXL', XXXL: 'XXXL'},
+	// AVAILABLE_SIZES: {XXXS: 'XXXS', XXS : 'XXS', XS: 'XS', S: 'S', M: 'M', L: 'L', XL: 'XL', XXL: 'XXL', XXXL: 'XXXL'},
 
 	init: function(id, sizes){
 		this.id = id;
@@ -200,7 +230,7 @@ Image.prototype = {
 	},
 
 	get_by_size: function(size){
-		return this.sizes[this.AVAILABLE_SIZES[size]];
+		return this.sizes[size];
 	},
 
 	get_width_by_size: function(size){

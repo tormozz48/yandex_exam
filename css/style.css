@@ -1,12 +1,8 @@
 html, body{
 	overflow: hidden;
-	background-color: #fff;
+	background-color: #003366;
 
 	position: relative;
-}
-
-table{
-	width: 100%;
 }
 
 table td{
@@ -19,12 +15,27 @@ table td{
 }
 
 .thumbnails-wrapper{
-	height: 100px;
+	width: 100%;
 
-	position: absolute;
+	padding: 5px 0;
+
+	position: fixed;
 	bottom: 0;
 
-	background-color: #ddd;
+	overflow-x: auto;
+	overflow-y: none;
+	white-space: nowrap; 
+
+	background-color: #fff;
+	box-shadow: 0 0 5px #fff;
+}
+
+.thumbnails-image{
+	display: inline;
+	margin-right: 5px;
+	margin-left: 5px;
+
+	box-shadow: 0 0 5px #000;
 }
 
 .non-visible{
