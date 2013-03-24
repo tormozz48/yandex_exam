@@ -20,7 +20,7 @@ table td{
 	padding: 5px 0;
 
 	position: fixed;
-	bottom: 0;
+	/*bottom: 0;*/
 
 	overflow-x: auto;
 	overflow-y: none;

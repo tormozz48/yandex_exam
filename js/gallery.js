@@ -2,7 +2,9 @@ jQuery(document).ready(function(){
 	new Gallery({
 		url: 'http://api-fotki.yandex.ru/api/top/',
 		order: 'updated',
-		limit: 40
+		limit: 40,
+		thumbnail_size: 'XXS',
+		image_size: 'M'
 	});
 });
 
@@ -29,15 +31,32 @@ Gallery = function(config){
 // };
 
 Gallery.prototype = {
+	DEFAULT_THUMBNAIL_SIZE: 'XXS',
+	DEFAULT_IMAGE_SIZE: 'M',
+	AVAILABLE_SIZES: ['XXXS', 'XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'],
+
+	THUMBNAILS_WRAPPER_HEIGHT_ADDITION: 10,
+
 	config: null,
 	data_source: null,
-	image: null,
+
+	thumbnails_hidden: true,
+
+	// image: null,
 
 	//image_wrapper: jQuery('.large-image-wrapper'),
 
 	init: function(config){
 		this.config = config;
 		
+		if(this.config.thumbnail_size == undefined || this.config.thumbnail_size == null){
+			this.config.thumbnail_size = this.DEFAULT_THUMBNAIL_SIZE;
+		}
+
+		if(this.config.image_size == undefined || this.config.thumbnail_size == null){
+			this.config.image_size = this.DEFAULT_IMAGE_SIZE;
+		}
+
 		// this.draw_image();
 		// var self = this;
 		// jQuery(window).resize(function(){
@@ -57,22 +76,58 @@ Gallery.prototype = {
 	},
 
 	draw_thumbnails: function(){
-		var thumbnail_wrapper = jQuery('<div/>', {class: 'thumbnails-wrapper'});
-		thumbnail_wrapper.appendTo('body');
-
 		var images = this.data_source.images;
 		var l = images.length;
+		var self = this;
 
 		if(l > 0){
+			var thumbnail_wrapper = jQuery('<div/>', {class: 'thumbnails-wrapper'});
+			thumbnail_wrapper.appendTo('body');
+
 			for(var i = 0; i < l; i++){
 				jQuery('<img/>')
-				.attr('src', images[i].get_href_by_size('XXS'))
+				.attr('src', images[i].get_by_size(this.config.thumbnail_size).href)
 				.css({
-					'width': images[i].get_width_by_size('XXS'),
-					'height': images[i].get_height_by_size('XXS'),
+					'width': images[i].get_by_size(this.config.thumbnail_size).width,
+					'height': images[i].get_by_size(this.config.thumbnail_size).height,
 				}).addClass('thumbnails-image').appendTo(thumbnail_wrapper);
 			}
+
+			thumbnail_wrapper.css('bottom', 
+				(-1)*(thumbnail_wrapper.height() + this.THUMBNAILS_WRAPPER_HEIGHT_ADDITION));
+
+			jQuery(window).mousemove(function(event){
+				var h = jQuery(window).height();
+				var y = event.pageY;
+				var twh = jQuery('.thumbnails-wrapper').height();
+				if(h - y <= twh){
+					self.show_thumbnails_wrapper();
+				}else{
+					self.hide_thumbnails_wrapper();
+				}
+			});
 		}
+	},
+
+	hide_thumbnails_wrapper: function(){
+		if(!this.thumbnails_hidden){
+			console.log('-- hide thumbnails wrapper --');
+			this.thumbnails_hidden = true;
+			var _twh = (-1)*(jQuery('.thumbnails-wrapper').height() + this.THUMBNAILS_WRAPPER_HEIGHT_ADDITION);
+			jQuery('.thumbnails-wrapper').animate({
+    			bottom: _twh
+  			}, 300);
+		}	
+	},
+
+	show_thumbnails_wrapper: function(){
+		if(this.thumbnails_hidden){
+			console.log('-- show thumbnails wrapper --');
+			this.thumbnails_hidden = false;
+			jQuery('.thumbnails-wrapper').animate({
+    			bottom: 0,
+  			}, 300);
+		}	
 	}
 
 	// draw_image: function(){
@@ -222,8 +277,6 @@ Image.prototype = {
 	id: null,
 	sizes: null,
 
-	// AVAILABLE_SIZES: {XXXS: 'XXXS', XXS : 'XXS', XS: 'XS', S: 'S', M: 'M', L: 'L', XL: 'XL', XXL: 'XXL', XXXL: 'XXXL'},
-
 	init: function(id, sizes){
 		this.id = id;
 		this.sizes = sizes;
@@ -231,17 +284,5 @@ Image.prototype = {
 
 	get_by_size: function(size){
 		return this.sizes[size];
-	},
-
-	get_width_by_size: function(size){
-		return this.get_by_size(size).width;
-	},
-
-	get_height_by_size: function(size){
-		return this.get_by_size(size).height;
-	},
-
-	get_href_by_size: function(size){
-		return this.get_by_size(size).href;
 	}
 };
