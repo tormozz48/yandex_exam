@@ -6,22 +6,26 @@ html, body{
 }
 
 .large-image{
+	border-radius: 10px;
+	box-shadow: 0 0 3px #fff;	
+}
+
+.large-image-active{
 		
 }
 
+
 .thumbnails-wrapper{
 	width: 100%;
-
 	padding: 5px 0;
-
 	position: fixed;
-	/*bottom: 0;*/
 
 	overflow-x: auto;
 	overflow-y: none;
 	white-space: nowrap; 
 
 	background-color: #fff;
+	opacity: 0.9;
 	box-shadow: 0 0 5px #fff;
 }
 
@@ -36,15 +40,39 @@ html, body{
 }
 
 .thumbnails-image:hover{
-	border: 1px solid #000;
+	border-color:  #000;
 	box-shadow: 0 0 5px #000;		
 }
 
 .thumbnails-image-active, .thumbnails-image-active:hover{
-	border: 1px solid #036;
+	border-color:  #036;
 	box-shadow: 0 0 5px #036;
 }
 
 .non-visible{
 	visibility: hidden;
+}
+
+.no-disp{
+	display: none;
+}
+
+.arrow_previous, .arrow_next{
+	position: fixed;
+	top: 50px;
+
+	width: 64px;
+	height: 64px;
+	
+	cursor: pointer;
+}
+
+.arrow_previous{
+	left: 0;
+	background: url(../images/previous.png) no-repeat;
+}
+
+.arrow_next{
+	right: 0;
+	background: url(../images/next.png) no-repeat;
 }
