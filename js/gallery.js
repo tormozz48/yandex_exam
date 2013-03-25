@@ -41,16 +41,13 @@ Gallery.prototype = {
 		
 		var ds = this.data_source
 		ds.load_data().done(function(response) { 
-			ds.parse_data(response).done(function(){
-				self.draw_thumbnails();
-				self.draw_arrows();
-				self.switch_image_step1(0).done(function(){
-					self.switch_image_step2(0).done(function(){
-						self.switch_image_step3(0);
-					});
+			ds.parse_data(response)
+				.done(function(){
+					self.draw_thumbnails();
+					self.draw_arrows();
+					self.switch_image(0);
 				});
 			}); 
-		});
 	},
 
 	/**
@@ -110,14 +107,7 @@ Gallery.prototype = {
 
 			// bind image switching handler for thumbnail image click event
 			jQuery('.thumbnails-image').on('click', function(){
-				var index = jQuery(this).attr('data-index')
-				self.switch_image_step1(index)
-				.done(function(){
-					self.switch_image_step2(index)
-					.done(function(){
-						self.switch_image_step3(index)
-					});
-				});
+				self.switch_image(jQuery(this).attr('data-index'));
 			});
 
 			//bing mousewheel scrolling for thumbnail wrapper
@@ -129,6 +119,8 @@ Gallery.prototype = {
 	* Draw side arrows for switching images to next or previous
 	**/
 	draw_arrows: function(){
+		var self = this;
+
 		//create div for previous arrow 
 		jQuery('<div/>')
 			.addClass('arrow_previous')
@@ -138,32 +130,31 @@ Gallery.prototype = {
 		jQuery('<div/>')
 			.addClass('arrow_next')
 			.appendTo('body');
-
-		//hide previous arrow if current image is first in gallery	
-		if(this.data_source.is_current_first()){
-			jQuery('.arrow_previous').hide();
-		}
-
-		//hide next arrow if current image is last in gallery
-		if(this.data_source.is_current_last()){
-			jQuery('.arrow_next').hide();
-		}	
 		
-		//show left, right or both arrows on mouse enter window event 
-		var self = this;	
+		// Bind mouse enter event to  window for enable gallery arrows	
 		jQuery(window).mouseenter(function(){
-			if(self.data_source.is_current_first()){
-				jQuery('.arrow_next').show(0);
-			}
-			if(self.data_source.is_current_last()){
-				jQuery('.arrow_previous').show(0);
-			}	
+			self.toggle_arrows();
 		});
 
 		//hide both arrows on mouse leave window event
 		jQuery(window).mouseleave(function(){
-			jQuery('.arrow_previous, .arrow_next').fadeOut(30);
+			jQuery('.arrow_previous, .arrow_next').hide();
 		});
+
+		// Bind click event on previous arrow div
+		// for switch to previous image in gallery
+		jQuery('.arrow_previous').click(function(){
+			self.switch_image(self.data_source.current_index - 1);
+		});
+
+		// Bind click event on nex arrow div
+		// for switch to next image in gallery		
+		jQuery('.arrow_next').click(function(){
+			self.switch_image(self.data_source.current_index - (-1));
+		});
+
+		//Immediately call method for enable gallery arrows
+		jQuery(window).triggerHandler('mouseenter');	
 	},
 
 	draw_large_image: function(index){
@@ -172,7 +163,6 @@ Gallery.prototype = {
 		var image = this.data_source.images[index];
 
 		var img = jQuery('<img/>')
-		// .attr('id', image.id)
 		.attr('src', image.get_by_size(this.config.image_size).href)
 		.attr('data-id', image.id)
 		.attr('data-index', index)
@@ -196,24 +186,35 @@ Gallery.prototype = {
 		jQuery('.thumbnails-wrapper').scrollTo('[data-index="' + index + '"]', 400);
 	},
 
-	switch_image_step1: function(index){
-		console.log('step 1 ' + index);
-		if(this.transition_execute_now){
-			return;
-		}
-
-		this.transition_execute_now = true;
-		this.switch_thumbnail(index);
-
-		var deferred = jQuery.Deferred();
-		this.draw_large_image(index).load(function(){
-			deferred.resolve(index);
+	switch_image: function(index){
+		var self = this;
+		this.switch_image_step1(index)
+		.done(function(){
+			self.switch_image_step2(index)
+			.done(function(){
+				self.switch_image_step3(index)
+			});
 		});
+	},
+
+	switch_image_step1: function(index){
+		var deferred = jQuery.Deferred();
+		if(this.transition_execute_now || index < 0 
+			|| index > this.data_source.images.length - 1 || index === this.data_source.current_index){
+			deferred.reject();
+		}else{
+			this.transition_execute_now = true;
+			this.switch_thumbnail(index);
+
+			this.draw_large_image(index).load(function(){
+				deferred.resolve(index);
+			});
+		}
 		return deferred.promise();
 	},
 
 	switch_image_step2: function(index){
-		console.log('step 2 ' + index);
+		var deferred = jQuery.Deferred();
 		var current_index = this.data_source.current_index;
 
 		var new_image = this.data_source.images[index];
@@ -222,43 +223,38 @@ Gallery.prototype = {
 		var new_img = jQuery('.large-image[data-id="' + new_image.id + '"]');
 		var old_img = jQuery('.large-image[data-id="' + old_image.id + '"]');
 
-		new_img.css(index >= current_index ? 'right' : 'left', ((-1)*new_image.get_by_size(this.config.image_size).width + 'px'));
-		new_img.css('top', ((jQuery(window).height() - new_image.get_by_size(this.config.image_size).height)/2	) + 'px');
-		
-		// console.log('left = ' + img.css('left'));
-		// console.log('right = ' + img.css('right'));
-		// console.log('top = ' + img.css('top'));
+		var w = jQuery(window).width();
+		var h = jQuery(window).height();
 
+		var niw = new_image.get_by_size(this.config.image_size).width;
+		var nih = new_image.get_by_size(this.config.image_size).height;
+
+		var direction = index > current_index ? 1 : -1;
+
+		new_img.css('right', (direction > 0 ? (-1)*niw : w) + 'px');
+		new_img.css('top', ((h - nih)/2) + 'px');
+		
 		new_img.removeClass('no-disp');
 
-		var config_new = index >= current_index ? 
-			{right: ((jQuery(window).width() - new_image.get_by_size(this.config.image_size).width)/2) + 'px'} :
-			{left: ((jQuery(window).width() - new_image.get_by_size(this.config.image_size).width)/2) + 'px'};
+		var config_new = {right: ((w - niw)/2) + 'px'};
 
-		var config_old = index >= current_index ? 
-			{left: (-1)*old_image.get_by_size(this.config.image_size).width + 'px'} :
-			{right: (-1)*old_image.get_by_size(this.config.image_size).width + 'px'};	
-
-		console.log(config_old.left);
-		console.log(config_old.right);	
-			
-		var deferred = jQuery.Deferred();
-		jQuery.when(old_img.animate(config_old, 300, function(){console.log('old complete')}), 
-					new_img.animate(config_new, 300, function(){console.log('new complete')}))
-		.then(function(){
+		var config_old = {right: (direction > 0 ? w : (-1)*niw) + 'px'};		
+		
+		jQuery.when(old_img.animate(config_old, 300), new_img.animate(config_new, 300)).then(function(){
 			deferred.resolve();
 		});
 		return deferred.promise();
 	},
 
 	switch_image_step3: function(index){
-		console.log('step 3 ' + index);
-
 		var current_index = this.data_source.current_index;
 		var old_image = this.data_source.images[current_index];
 		jQuery('.large-image[data-id="' + old_image.id + '"]').remove();
 
 		this.data_source.current_index = index;
+
+		this.toggle_arrows();	
+
 		this.transition_execute_now = false;
 	},
 
@@ -298,8 +294,7 @@ Gallery.prototype = {
 	* thumbnails wrapper below bottom border of browser window
 	**/
 	hide_thumbnails_wrapper: function(){
-		if(!this.thumbnails_hidden){
-			
+		if(!this.thumbnails_hidden){			
 			this.thumbnails_hidden = true;
 			var _twh = (-1)*(jQuery('.thumbnails-wrapper').height() + this.THUMBNAILS_WRAPPER_HEIGHT_ADDITION);
 			jQuery('.thumbnails-wrapper').animate({
@@ -315,14 +310,34 @@ Gallery.prototype = {
 	* Finally we should animate css transition of bottom property to zero value
 	**/
 	show_thumbnails_wrapper: function(){
-		if(this.thumbnails_hidden){
-			
+		if(this.thumbnails_hidden){			
 			this.thumbnails_hidden = false;
 			jQuery('.thumbnails-wrapper').animate({
     			bottom: 0,
   			}, 300);
 		}	
 	},
+
+	/**
+	* Enable gallery arrows for switch to previous or next image
+	* Also we should check if current image is first or last in gallery
+	* and hide previous or next arrow
+	**/
+	toggle_arrows: function(){
+		//hide previous arrow if current image is first in gallery	
+		if(this.data_source.is_current_first()){
+			jQuery('.arrow_previous').hide();
+		}else{
+			jQuery('.arrow_previous').show();
+		}
+
+		//hide next arrow if current image is last in gallery
+		if(this.data_source.is_current_last()){
+			jQuery('.arrow_next').hide();
+		}else{
+			jQuery('.arrow_next').show();
+		}
+	},	
 
 	/**
 	* This is not my solution
@@ -384,9 +399,11 @@ DataSource.prototype = {
 		this.config = config;
 	},
 
+	/**
+	* Creates url for retreiving data from yandex photo hosting
+	* url + order + / + ?limit=limit + & + format=json + & + callback=? 
+	**/
 	create_url: function(){
-		
-
 		var url = null;
 
 		//get url from config or set default url
@@ -416,9 +433,7 @@ DataSource.prototype = {
 		}
 
 		url += '?limit=' + limit;
-
 		url += '&' + this.DATA_FORMAT + '&' + this.CALLBACK;
-
 		
 		return url;
 	},
@@ -428,8 +443,6 @@ DataSource.prototype = {
 	},
 
 	parse_data: function(response){
-		
-
 		var deferred = jQuery.Deferred(); 
 		var l = response.entries.length;
 
@@ -437,8 +450,7 @@ DataSource.prototype = {
 			this.images = new Array();
 			for(var i = 0; i < l; i++){
 				this.images[i] = new Image(response.entries[i].id, response.entries[i].img);
-			}
-			
+			}			
 		}else{
 			//TODO something
 		}
@@ -447,6 +459,9 @@ DataSource.prototype = {
 		return deferred.promise();
 	},
 
+	/**
+	* Get index of image in gallery by unique image id attribute
+	**/
 	get_index_by_id: function(id){
 		var index = -1;
 		if(this.images != null && this.images.length > 0){
@@ -489,6 +504,9 @@ Image.prototype = {
 		this.sizes = sizes;
 	},
 
+	/**
+	* Get image version by size key
+	**/
 	get_by_size: function(size){
 		return this.sizes[size];
 	}
