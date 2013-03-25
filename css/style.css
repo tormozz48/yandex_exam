@@ -6,14 +6,13 @@ html, body{
 }
 
 .large-image{
+	display: inline;
+	z-index: -1;
+	position: fixed;
+
 	border-radius: 10px;
 	box-shadow: 0 0 3px #fff;	
 }
-
-.large-image-active{
-		
-}
-
 
 .thumbnails-wrapper{
 	width: 100%;

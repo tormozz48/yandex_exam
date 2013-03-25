@@ -23,6 +23,7 @@ Gallery.prototype = {
 	data_source: null,
 
 	thumbnails_hidden: true,
+	transition_execute_now: false,
 
 	init: function(config){
 		this.config = (config != undefined && config != null) ? config : {};
@@ -34,8 +35,6 @@ Gallery.prototype = {
 		if(this.config.image_size == undefined || this.config.thumbnail_size == null){
 			this.config.image_size = this.DEFAULT_IMAGE_SIZE;
 		}
-
-		console.log('-- gallery initialize start --');
 		
 		var self = this;
 		this.data_source = new DataSource(this.config);
@@ -45,8 +44,10 @@ Gallery.prototype = {
 			ds.parse_data(response).done(function(){
 				self.draw_thumbnails();
 				self.draw_arrows();
-				self.draw_first_image().done(function(){
-					self.align_and_resize();
+				self.switch_image_step1(0).done(function(){
+					self.switch_image_step2(0).done(function(){
+						self.switch_image_step3(0);
+					});
 				});
 			}); 
 		});
@@ -109,46 +110,19 @@ Gallery.prototype = {
 
 			// bind image switching handler for thumbnail image click event
 			jQuery('.thumbnails-image').on('click', function(){
-				self.switch_image(jQuery(this).attr('data-index'));
+				var index = jQuery(this).attr('data-index')
+				self.switch_image_step1(index)
+				.done(function(){
+					self.switch_image_step2(index)
+					.done(function(){
+						self.switch_image_step3(index)
+					});
+				});
 			});
 
 			//bing mousewheel scrolling for thumbnail wrapper
 			this.bind_scrollable();
 		}
-	},
-
-	/**
-	* Method for hide thumbnails wrapper
-	* At first we should check if thumbnails wrapper is already in hidden state
-	* It is necessary for preventing multiple attempt to hiding
-	* Finally we should animate css transition of bottom property for hiding 
-	* thumbnails wrapper below bottom border of browser window
-	**/
-	hide_thumbnails_wrapper: function(){
-		if(!this.thumbnails_hidden){
-			console.log('-- hide thumbnails wrapper --');
-			this.thumbnails_hidden = true;
-			var _twh = (-1)*(jQuery('.thumbnails-wrapper').height() + this.THUMBNAILS_WRAPPER_HEIGHT_ADDITION);
-			jQuery('.thumbnails-wrapper').animate({
-    			bottom: _twh
-  			}, 300);
-		}	
-	},
-
-	/**
-	* Method for show thumbnails wrapper
-	* At first we should check if thumbnails wrapper is already in visible state
-	* It is necessary for preventing multiple attempt to show
-	* Finally we should animate css transition of bottom property to zero value
-	**/
-	show_thumbnails_wrapper: function(){
-		if(this.thumbnails_hidden){
-			console.log('-- show thumbnails wrapper --');
-			this.thumbnails_hidden = false;
-			jQuery('.thumbnails-wrapper').animate({
-    			bottom: 0,
-  			}, 300);
-		}	
 	},
 
 	/**
@@ -160,84 +134,137 @@ Gallery.prototype = {
 			.addClass('arrow_previous')
 			.appendTo('body');
 		
+		//create div for next arrow 	
 		jQuery('<div/>')
 			.addClass('arrow_next')
 			.appendTo('body');
 
+		//hide previous arrow if current image is first in gallery	
 		if(this.data_source.is_current_first()){
 			jQuery('.arrow_previous').hide();
 		}
 
+		//hide next arrow if current image is last in gallery
 		if(this.data_source.is_current_last()){
 			jQuery('.arrow_next').hide();
 		}	
 		
+		//show left, right or both arrows on mouse enter window event 
 		var self = this;	
 		jQuery(window).mouseenter(function(){
 			if(self.data_source.is_current_first()){
-				jQuery('.arrow_next').fadeIn(0);
+				jQuery('.arrow_next').show(0);
 			}
 			if(self.data_source.is_current_last()){
-				jQuery('.arrow_previous').fadeIn(0);
+				jQuery('.arrow_previous').show(0);
 			}	
 		});
 
+		//hide both arrows on mouse leave window event
 		jQuery(window).mouseleave(function(){
-			jQuery('.arrow_previous, .arrow_next').fadeOut(0);
+			jQuery('.arrow_previous, .arrow_next').fadeOut(30);
 		});
 	},
 
-	draw_first_image: function(){
-		//TODO check for cookies
+	draw_large_image: function(index){
+		jQuery('.large-image_new').removeClass('large-image_new').addClass('large-image_old');
 
-		var image = this.data_source.images[this.data_source.current_index];
+		var image = this.data_source.images[index];
 
 		var img = jQuery('<img/>')
+		// .attr('id', image.id)
 		.attr('src', image.get_by_size(this.config.image_size).href)
 		.attr('data-id', image.id)
-		.attr('data-index', this.data_source.current_index)
+		.attr('data-index', index)
 		.css({
 			'width': image.get_by_size(this.config.image_size).width,
 			'height': image.get_by_size(this.config.image_size).height,
 		})
 		.addClass('large-image')
-		.addClass('large-image-active')
 		.addClass('no-disp')
-		.appendTo('body').hide();
+		.appendTo('body');
+
+		return img;
+	},
+
+	switch_thumbnail: function(index){
+		jQuery('.thumbnails-image').removeClass('thumbnails-image-active');
+		
+		jQuery('[data-index="' + index + '"]').addClass('thumbnails-image-active');
+
+		//TODO implement correct scrolling for thumbnails wrapper on image switching
+		jQuery('.thumbnails-wrapper').scrollTo('[data-index="' + index + '"]', 400);
+	},
+
+	switch_image_step1: function(index){
+		console.log('step 1 ' + index);
+		if(this.transition_execute_now){
+			return;
+		}
+
+		this.transition_execute_now = true;
+		this.switch_thumbnail(index);
 
 		var deferred = jQuery.Deferred();
-		img.load(function(){
+		this.draw_large_image(index).load(function(){
+			deferred.resolve(index);
+		});
+		return deferred.promise();
+	},
+
+	switch_image_step2: function(index){
+		console.log('step 2 ' + index);
+		var current_index = this.data_source.current_index;
+
+		var new_image = this.data_source.images[index];
+		var old_image = this.data_source.images[current_index];
+
+		var new_img = jQuery('.large-image[data-id="' + new_image.id + '"]');
+		var old_img = jQuery('.large-image[data-id="' + old_image.id + '"]');
+
+		new_img.css(index >= current_index ? 'right' : 'left', ((-1)*new_image.get_by_size(this.config.image_size).width + 'px'));
+		new_img.css('top', ((jQuery(window).height() - new_image.get_by_size(this.config.image_size).height)/2	) + 'px');
+		
+		// console.log('left = ' + img.css('left'));
+		// console.log('right = ' + img.css('right'));
+		// console.log('top = ' + img.css('top'));
+
+		new_img.removeClass('no-disp');
+
+		var config_new = index >= current_index ? 
+			{right: ((jQuery(window).width() - new_image.get_by_size(this.config.image_size).width)/2) + 'px'} :
+			{left: ((jQuery(window).width() - new_image.get_by_size(this.config.image_size).width)/2) + 'px'};
+
+		var config_old = index >= current_index ? 
+			{left: (-1)*old_image.get_by_size(this.config.image_size).width + 'px'} :
+			{right: (-1)*old_image.get_by_size(this.config.image_size).width + 'px'};	
+
+		console.log(config_old.left);
+		console.log(config_old.right);	
+			
+		var deferred = jQuery.Deferred();
+		jQuery.when(old_img.animate(config_old, 300, function(){console.log('old complete')}), 
+					new_img.animate(config_new, 300, function(){console.log('new complete')}))
+		.then(function(){
 			deferred.resolve();
 		});
 		return deferred.promise();
 	},
 
-	align_and_resize: function(){
-		this.window_resize_handler();
-		this.show_large_image();
-	},
+	switch_image_step3: function(index){
+		console.log('step 3 ' + index);
 
-	show_large_image: function(){
-		jQuery('.large-image-active').fadeIn(400);
-	},
+		var current_index = this.data_source.current_index;
+		var old_image = this.data_source.images[current_index];
+		jQuery('.large-image[data-id="' + old_image.id + '"]').remove();
 
-	switch_image: function(index){
-		console.log('-- switch image --');
-		console.log('image index = ' + index);
-
-		jQuery('.thumbnails-image').removeClass('thumbnails-image-active');
-		
-		jQuery('[data-index="' + index + '"]').addClass('thumbnails-image-active');
-
-		jQuery('.thumbnails-wrapper').scrollTo('[data-index="' + index + '"]', 400);
-
-   		//TODO implement correct scrolling for thumbnails wrapper on image switching
-   		//jQuery('.thumbnails-wrapper').scrollTo(iLeft+'px', 400);
+		this.data_source.current_index = index;
+		this.transition_execute_now = false;
 	},
 
 	window_resize_handler: function(){
 		var current_image = this.data_source.images[this.data_source.current_index];
-		var img = jQuery('.large-image-active');
+		var img = jQuery('.large-image');
 
 		var w = jQuery(window).width(); //window width
 		var dw = current_image.get_by_size(this.config.image_size).width; //original image width
@@ -259,8 +286,42 @@ Gallery.prototype = {
 		}
 
 		//center image on horizontal and vertical dimensions
-		img.css('margin-left', ((jQuery(window).width() - img.width())/2) + 'px');
-		img.css('margin-top', ((jQuery(window).height() - img.height())/2) + 'px');
+		img.css('left', ((jQuery(window).width() - img.width())/2) + 'px');
+		img.css('top', ((jQuery(window).height() - img.height())/2) + 'px');
+	},
+
+	/**
+	* Method for hide thumbnails wrapper
+	* At first we should check if thumbnails wrapper is already in hidden state
+	* It is necessary for preventing multiple attempt to hiding
+	* Finally we should animate css transition of bottom property for hiding 
+	* thumbnails wrapper below bottom border of browser window
+	**/
+	hide_thumbnails_wrapper: function(){
+		if(!this.thumbnails_hidden){
+			
+			this.thumbnails_hidden = true;
+			var _twh = (-1)*(jQuery('.thumbnails-wrapper').height() + this.THUMBNAILS_WRAPPER_HEIGHT_ADDITION);
+			jQuery('.thumbnails-wrapper').animate({
+    			bottom: _twh
+  			}, 300);
+		}	
+	},
+
+	/**
+	* Method for show thumbnails wrapper
+	* At first we should check if thumbnails wrapper is already in visible state
+	* It is necessary for preventing multiple attempt to show
+	* Finally we should animate css transition of bottom property to zero value
+	**/
+	show_thumbnails_wrapper: function(){
+		if(this.thumbnails_hidden){
+			
+			this.thumbnails_hidden = false;
+			jQuery('.thumbnails-wrapper').animate({
+    			bottom: 0,
+  			}, 300);
+		}	
 	},
 
 	/**
@@ -324,7 +385,7 @@ DataSource.prototype = {
 	},
 
 	create_url: function(){
-		console.log('-- create url start --')
+		
 
 		var url = null;
 
@@ -358,7 +419,7 @@ DataSource.prototype = {
 
 		url += '&' + this.DATA_FORMAT + '&' + this.CALLBACK;
 
-		console.log('url = ' + url);
+		
 		return url;
 	},
 
@@ -367,10 +428,7 @@ DataSource.prototype = {
 	},
 
 	parse_data: function(response){
-		console.log('-- data has been received from API --');
-		console.log(response.title);
-		console.log(response.id);
-		console.log(response.updated);
+		
 
 		var deferred = jQuery.Deferred(); 
 		var l = response.entries.length;
@@ -380,10 +438,9 @@ DataSource.prototype = {
 			for(var i = 0; i < l; i++){
 				this.images[i] = new Image(response.entries[i].id, response.entries[i].img);
 			}
-			console.log('-- images have been placed into collection --');
-			console.log('images length = ' + this.images.length);
+			
 		}else{
-			console.log('-- no images were received from API --');
+			//TODO something
 		}
 
 		deferred.resolve();
@@ -436,49 +493,3 @@ Image.prototype = {
 		return this.sizes[size];
 	}
 };
-
-// draw_image: function(){
-	// 	var img = jQuery('.large-image');
-	// 	this.image = new Image(img.width(), img.height()); 
-
-	// 	this.window_resize_handler();
-
-	// 	this.show_image();
-	// },
-
-	// window_resize_handler: function(){
-	// 	var img = jQuery('.large-image');
-
-	// 	var w = jQuery(window).width(); //window width
-	// 	var dw = this.image.get_width(); //original image width
-		
-	// 	var h = jQuery(window).height(); //window height
-	// 	var dh = this.image.get_height(); //original image height
-
-	// 	var ar = dw/dh; //image aspect ratio
-
-	// 	//resize image if it necessary
-	// 	if(w < dw || h < dh){
-	// 		if (w/h > ar){
-	// 			img.height(h);
- //            	img.width(h * ar);
-	// 		}else{
-	// 			img.width(w);
- //            	img.height(w / ar);
-	// 		}
-	// 	}
-
-	// 	//center image on horizontal and vertical dimensions
-	// 	img.css('margin-left', ((jQuery(window).width() - img.width())/2) + 'px');
-	// 	img.css('margin-top', ((jQuery(window).height() - img.height())/2) + 'px');
-	// },
-
-	//show image by removing non-visible class from it
-	// show_image: function(){
-	// 	jQuery('.large-image').removeClass('non-visible'); 	
-	// },
-
-	// //hide image by adding non-visible class to it
-	// hide_image: function(){
-	// 	jQuery('.large-image').addClass('non-visible');	
-	// }
