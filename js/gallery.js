@@ -69,7 +69,6 @@ Gallery.prototype = {
 		)
 		.then(
 			function(){
-				console.log('Data has been parsed');
 				self.draw_thumbnails();
 				self.draw_arrows();
 				self.switch_image_first();
@@ -232,7 +231,7 @@ Gallery.prototype = {
 		active_thumbnail.addClass('thumbnails-image-active');
 
 		//TODO implement correct scrolling for thumbnails wrapper on image switching
-		this.thumbnail_wrapper.scrollTo((active_thumbnail.offset().left + this.win.width()/2) + 'px', this.config.switch_duration);
+		this.thumbnail_wrapper.scrollTo('.thumbnails-image-active', this.config.switch_duration);
 	},
 
 	/**
@@ -320,19 +319,18 @@ Gallery.prototype = {
 		var w = this.win.width();
 		var h = this.win.height();
 
-		var niw = new_image.get_by_size(this.config.image_size).width;
-		var nih = new_image.get_by_size(this.config.image_size).height;
+		this.resize_image(new_img, new_image);
 
 		var direction = index > current_index ? 1 : -1;
 
-		new_img.css('right', (direction > 0 ? (-1)*niw : w) + 'px');
-		new_img.css('top', ((h - nih)/2) + 'px');
+		new_img.css('right', (direction > 0 ? (-1)*new_img.width() : w) + 'px');
+		new_img.css('top', ((h - new_img.height())/2) + 'px');
 		
 		new_img.removeClass('no-disp');
 
-		var config_new = {right: ((w - niw)/2) + 'px'};
+		var config_new = {right: ((w - new_img.width())/2) + 'px'};
 
-		var config_old = {right: (direction > 0 ? w : (-1)*niw) + 'px'};		
+		var config_old = {right: (direction > 0 ? w : (-1)*new_img.width()) + 'px'};		
 		
 		jQuery.when(old_img.animate(config_old, this.config.switch_duration), 
 					new_img.animate(config_new, this.config.switch_duration))
@@ -368,39 +366,41 @@ Gallery.prototype = {
 	* - show new image by removing no-disp class from it 
 	**/
 	switch_image_step2_0: function(index){
-		var new_image = this.data_source.images[index];
-		var new_img = jQuery('.large-image[data-id="' + new_image.id + '"]');
+		var image = this.data_source.images[index];
+		var img = jQuery('.large-image[data-id="' + image.id + '"]');
 		
-		var w = this.win.width();
-		var h = this.win.height();
-
-		var niw = new_image.get_by_size(this.config.image_size).width;
-		var nih = new_image.get_by_size(this.config.image_size).height;
-
-		new_img.css('right', ((w - niw)/2) + 'px');
-		new_img.css('top', ((h - nih)/2) + 'px');
-		
-		new_img.removeClass('no-disp');
+		this.resize_image(img, image);
+		this.align_image(img);
+				
+		img.removeClass('no-disp');
 	},
 
 	/**
 	* This is handler for window resize event
 	* In this method we should:
 	* - get window width and height
-	* - get image original width and height
-	* - calculate aspect ration of image dimensions 
-	* - resize image if it width or height is less then window width o height
+	* - resize image if necessary
 	* - align image horizontally and vertically by setting new left and top css properties
 	**/
 	window_resize_handler: function(){
 		var current_image = this.data_source.images[this.data_source.current_index];
 		var img = jQuery('.large-image');
+		this.resize_image(img, current_image);
+		this.align_image(img);	
+	},
 
+	/**
+	* Method for resizing image if window size is less then original image size 	
+	* - get image original width and height
+	* - calculate aspect ration of image dimensions 
+	* - resize image if it width or height is less then window width o height
+	**/
+	resize_image: function(img, model){
 		var w = this.win.width(); //window width
-		var dw = current_image.get_by_size(this.config.image_size).width; //original image width
-		
 		var h = this.win.height(); //window height
-		var dh = current_image.get_by_size(this.config.image_size).height; //original image height
+
+		var dw = model.get_by_size(this.config.image_size).width; //original image width
+		var dh = model.get_by_size(this.config.image_size).height; //original image height
 
 		var ar = dw/dh; //image aspect ratio
 
@@ -414,10 +414,18 @@ Gallery.prototype = {
             	img.height(w / ar);
 			}
 		}
+	},
+
+	/**
+	* Align image on center of screen by setting left and top css properties
+	**/
+	align_image: function(img){
+		var w = this.win.width(); //window width
+		var h = this.win.height(); //window height
 
 		//center image on horizontal and vertical dimensions
-		img.css('left', ((this.win.width() - img.width())/2) + 'px');
-		img.css('top', ((this.win.height() - img.height())/2) + 'px');
+		img.css('right', ((w - img.width())/2) + 'px');
+		img.css('top', ((h - img.height())/2) + 'px');
 	},
 
 	/**
@@ -577,7 +585,6 @@ DataSource.prototype = {
 	* Loads data from yandex API with JSONP
 	**/
 	load_data: function(){
-		console.log('Load data from API');
 		return jQuery.getJSON(this.create_url())
 	},
 
@@ -586,7 +593,6 @@ DataSource.prototype = {
 	* and fill model
 	**/
 	parse_data: function(response){
-		console.log('Parse data from API');
 		var deferred = jQuery.Deferred(); 
 		var l = response.entries.length;
 
