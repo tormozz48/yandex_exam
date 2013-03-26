@@ -230,7 +230,6 @@ Gallery.prototype = {
 		var active_thumbnail = jQuery('.thumbnails-image[data-index="' + index + '"]');
 		active_thumbnail.addClass('thumbnails-image-active');
 
-		//TODO implement correct scrolling for thumbnails wrapper on image switching
 		this.thumbnail_wrapper.scrollTo('.thumbnails-image-active', this.config.switch_duration);
 	},
 
