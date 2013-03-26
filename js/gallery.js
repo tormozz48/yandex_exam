@@ -49,7 +49,8 @@ Gallery.prototype = {
 		this.data_source = new DataSource(this.config);
 		
 		var ds = this.data_source
-		ds.load_data().done(function(response) { 
+		ds.load_data()
+		.done(function(response) { 
 			ds.parse_data(response)
 				.done(function(){
 					self.draw_thumbnails();
@@ -58,6 +59,8 @@ Gallery.prototype = {
 				});
 			});
 
+		//bind handler to window resize event for align 
+		//and resize image proportionally to the screen
 		this.win.resize(function(){
 			self.window_resize_handler();
 		});	 
@@ -213,7 +216,7 @@ Gallery.prototype = {
 	* but second step is different 
 	**/
 	switch_image_first: function(){
-		var index = 0; //TODO get index from remember machine
+		var index = this.data_source.load_image_index();
 		var self = this;
 		this.switch_image_step1(index)
 		.done(function(){
@@ -277,11 +280,13 @@ Gallery.prototype = {
 	* In this method we should:
 	* - set current index filed to index of new image
 	* - toggle arrows for hide or display arrows depending on current_index value
+	* - save current image state to cookies
 	* - finish switching and unlocking ui
 	**/
 	switch_image_step3: function(index){				
 		this.data_source.current_index = index;
-		this.toggle_arrows();	
+		this.toggle_arrows();
+		this.data_source.save_image_index();	
 		this.transition_execute_now = false;
 	},
 
@@ -310,6 +315,15 @@ Gallery.prototype = {
 		new_img.removeClass('no-disp');
 	},
 
+	/**
+	* This is handler for window resize event
+	* In this method we should:
+	* - get window width and height
+	* - get image original width and height
+	* - calculate aspect ration of image dimensions 
+	* - resize image if it width or height is less then window width o height
+	* - align image horizontally and vertically by setting new left and top css properties
+	**/
 	window_resize_handler: function(){
 		var current_image = this.data_source.images[this.data_source.current_index];
 		var img = jQuery('.large-image');
@@ -441,6 +455,8 @@ DataSource.prototype = {
 	MIN_LIMIT: 0,
 	MAX_LIMIT: 100,
 
+	COOKIE_NAME: 'yandex_gallery_current_id',
+
 	config: null,
 	images: null,
 
@@ -538,6 +554,56 @@ DataSource.prototype = {
 	**/
 	is_current_last: function(){	
 		return (this.images != null && this.images.length > 0) ? this.current_index == this.images.length - 1 : true;			
+	},
+
+	/**
+	* Save unique id of current selected image to cookies
+	**/
+	save_image_index: function(){
+		var image = this.images[this.current_index];
+		this.create_cookie(this.COOKIE_NAME, image.id, 7);
+	},
+
+	/**
+	* Load index of image which we should switch to after gallery initializtion
+	**/
+	load_image_index: function(){
+		var index = 0;
+		var id = this.read_cookie(this.COOKIE_NAME);
+		if(id != undefined && id != null){
+			index = this.get_index_by_id(id);
+			if(index < 0){
+				index = 0;
+			}
+		}
+		return index;
+	},
+
+	/**
+	* It is not my solution. Thank to http://www.quirksmode.org/js/cookies.html
+	**/
+	create_cookie: function(name,value,days) {
+		if (days) {
+			var date = new Date();
+			date.setTime(date.getTime()+(days*24*60*60*1000));
+			var expires = "; expires="+date.toGMTString();
+		}
+		else var expires = "";
+		document.cookie = name+"="+value+expires+"; path=/";
+	},
+
+	/**
+	* It is not my solution. Thank to http://www.quirksmode.org/js/cookies.html
+	**/
+	read_cookie: function(name) {
+		var nameEQ = name + "=";
+		var ca = document.cookie.split(';');
+		for(var i=0;i < ca.length;i++) {
+			var c = ca[i];
+			while (c.charAt(0)==' ') c = c.substring(1,c.length);
+			if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length);
+		}
+		return null;
 	}
 };
 
