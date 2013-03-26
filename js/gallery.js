@@ -20,7 +20,13 @@ Gallery.prototype = {
 	THUMBNAILS_WRAPPER_HEIGHT_ADDITION: 10, //Magick constant.
 
 	config: null,
+
+	win: null, //window object in jQuery wrapper
 	data_source: null,
+	thumbnail_wrapper: null, //thumbnail div in jQuery wrapper
+
+	arrow_prev: null, //previous arrow div in jQuery wrapper
+	arrow_next: null, //next arrow div in jQuery wrapper
 
 	thumbnails_hidden: true,
 	transition_execute_now: false,
@@ -28,15 +34,18 @@ Gallery.prototype = {
 	init: function(config){
 		this.config = (config != undefined && config != null) ? config : {};
 		
-		if(this.config.thumbnail_size == undefined || this.config.thumbnail_size == null){
+		if(this.config.thumbnail_size == undefined || 
+			this.config.thumbnail_size == null){
 			this.config.thumbnail_size = this.DEFAULT_THUMBNAIL_SIZE;
 		}
 
-		if(this.config.image_size == undefined || this.config.thumbnail_size == null){
+		if(this.config.image_size == undefined || 
+			this.config.thumbnail_size == null){
 			this.config.image_size = this.DEFAULT_IMAGE_SIZE;
 		}
 		
 		var self = this;
+		this.win = jQuery(window);
 		this.data_source = new DataSource(this.config);
 		
 		var ds = this.data_source
@@ -45,9 +54,13 @@ Gallery.prototype = {
 				.done(function(){
 					self.draw_thumbnails();
 					self.draw_arrows();
-					self.switch_image(0);
+					self.switch_image_first();
 				});
-			}); 
+			});
+
+		this.win.resize(function(){
+			self.window_resize_handler();
+		});	 
 	},
 
 	/**
@@ -62,8 +75,7 @@ Gallery.prototype = {
 		if(l > 0){
 			
 			// create thumbnail wrapper div and append it to body
-			var thumbnail_wrapper = jQuery('<div/>', {class: 'thumbnails-wrapper'});
-			thumbnail_wrapper.appendTo('body');
+			this.thumbnail_wrapper = jQuery('<div/>', {class: 'thumbnails-wrapper'}).appendTo('body');
 
 			// iterate throught images collection
 			// on each iteration we should
@@ -80,12 +92,14 @@ Gallery.prototype = {
 				.css({
 					'width': images[i].get_by_size(this.config.thumbnail_size).width,
 					'height': images[i].get_by_size(this.config.thumbnail_size).height,
-				}).addClass('thumbnails-image').appendTo(thumbnail_wrapper);
+				})
+				.addClass('thumbnails-image')
+				.appendTo(this.thumbnail_wrapper);
 			}
 
 			// hide thumbnail wrapper below bottom border of browser window
-			thumbnail_wrapper.css('bottom', 
-				(-1)*(thumbnail_wrapper.height() + this.THUMBNAILS_WRAPPER_HEIGHT_ADDITION));
+			this.thumbnail_wrapper.css('bottom', 
+				(-1)*(this.thumbnail_wrapper.height() + this.THUMBNAILS_WRAPPER_HEIGHT_ADDITION));
 
 			// add mouse move event for window for hiding and showing thumbnails wrapper
 			// at this handler we should:
@@ -94,10 +108,10 @@ Gallery.prototype = {
 			//- take thumbnails wrapper height (it can be different depending on gallery initial configuration setings)
 			//- calculate difference twh between h and y
 			//- depending on twh value we should show or hide thumbnail wrapper 	
-			jQuery(window).mousemove(function(event){
-				var h = jQuery(window).height();
+			this.win.mousemove(function(event){
+				var h = self.win.height();
 				var y = event.pageY;
-				var twh = jQuery('.thumbnails-wrapper').height();
+				var twh = self.thumbnail_wrapper.height();
 				if(h - y <= twh){
 					self.show_thumbnails_wrapper();
 				}else{
@@ -122,44 +136,39 @@ Gallery.prototype = {
 		var self = this;
 
 		//create div for previous arrow 
-		jQuery('<div/>')
-			.addClass('arrow_previous')
-			.appendTo('body');
+		this.arrow_prev = jQuery('<div/>').addClass('arrow_previous').appendTo('body');
 		
 		//create div for next arrow 	
-		jQuery('<div/>')
-			.addClass('arrow_next')
-			.appendTo('body');
+		this.arrow_next = jQuery('<div/>').addClass('arrow_next').appendTo('body');
 		
 		// Bind mouse enter event to  window for enable gallery arrows	
-		jQuery(window).mouseenter(function(){
+		this.win.mouseenter(function(){
 			self.toggle_arrows();
 		});
 
 		//hide both arrows on mouse leave window event
-		jQuery(window).mouseleave(function(){
-			jQuery('.arrow_previous, .arrow_next').hide();
+		this.win.mouseleave(function(){
+			self.arrow_prev.hide();
+			self.arrow_next.hide();
 		});
 
 		// Bind click event on previous arrow div
 		// for switch to previous image in gallery
-		jQuery('.arrow_previous').click(function(){
+		this.arrow_prev.click(function(){
 			self.switch_image(self.data_source.current_index - 1);
 		});
 
 		// Bind click event on nex arrow div
 		// for switch to next image in gallery		
-		jQuery('.arrow_next').click(function(){
+		this.arrow_next.click(function(){
 			self.switch_image(self.data_source.current_index - (-1));
 		});
 
 		//Immediately call method for enable gallery arrows
-		jQuery(window).triggerHandler('mouseenter');	
+		this.win.triggerHandler('mouseenter');	
 	},
 
 	draw_large_image: function(index){
-		jQuery('.large-image_new').removeClass('large-image_new').addClass('large-image_old');
-
 		var image = this.data_source.images[index];
 
 		var img = jQuery('<img/>')
@@ -183,7 +192,7 @@ Gallery.prototype = {
 		jQuery('[data-index="' + index + '"]').addClass('thumbnails-image-active');
 
 		//TODO implement correct scrolling for thumbnails wrapper on image switching
-		jQuery('.thumbnails-wrapper').scrollTo('[data-index="' + index + '"]', 400);
+		this.thumbnail_wrapper.scrollTo('[data-index="' + index + '"]', 300);
 	},
 
 	switch_image: function(index){
@@ -194,6 +203,22 @@ Gallery.prototype = {
 			.done(function(){
 				self.switch_image_step3(index)
 			});
+		});
+	},
+
+	/**
+	* This is alternate method for switching for next image
+	* It is special because it is called only at first time after gallery appear
+	* first and third steps in this scenarious are same to with default swith_image method
+	* but second step is different 
+	**/
+	switch_image_first: function(){
+		var index = 0; //TODO get index from remember machine
+		var self = this;
+		this.switch_image_step1(index)
+		.done(function(){
+			self.switch_image_step2_0(index)			
+			self.switch_image_step3(index)			
 		});
 	},
 
@@ -223,8 +248,8 @@ Gallery.prototype = {
 		var new_img = jQuery('.large-image[data-id="' + new_image.id + '"]');
 		var old_img = jQuery('.large-image[data-id="' + old_image.id + '"]');
 
-		var w = jQuery(window).width();
-		var h = jQuery(window).height();
+		var w = this.win.width();
+		var h = this.win.height();
 
 		var niw = new_image.get_by_size(this.config.image_size).width;
 		var nih = new_image.get_by_size(this.config.image_size).height;
@@ -241,31 +266,58 @@ Gallery.prototype = {
 		var config_old = {right: (direction > 0 ? w : (-1)*niw) + 'px'};		
 		
 		jQuery.when(old_img.animate(config_old, 300), new_img.animate(config_new, 300)).then(function(){
+			old_img.remove();
 			deferred.resolve();
 		});
 		return deferred.promise();
 	},
 
-	switch_image_step3: function(index){
-		var current_index = this.data_source.current_index;
-		var old_image = this.data_source.images[current_index];
-		jQuery('.large-image[data-id="' + old_image.id + '"]').remove();
-
+	/**
+	* This is a final part of switching to new image
+	* In this method we should:
+	* - set current index filed to index of new image
+	* - toggle arrows for hide or display arrows depending on current_index value
+	* - finish switching and unlocking ui
+	**/
+	switch_image_step3: function(index){				
 		this.data_source.current_index = index;
-
 		this.toggle_arrows();	
-
 		this.transition_execute_now = false;
+	},
+
+	/**
+	* This is second part of switching to new image
+	* but only at first time.
+	* In this method we should:
+	* - get window width and height
+	* - get new image original width and height
+	* - align new image on center horizontally and vertically
+	* - show new image by removing no-disp class from it 
+	**/
+	switch_image_step2_0: function(index){
+		var new_image = this.data_source.images[index];
+		var new_img = jQuery('.large-image[data-id="' + new_image.id + '"]');
+		
+		var w = this.win.width();
+		var h = this.win.height();
+
+		var niw = new_image.get_by_size(this.config.image_size).width;
+		var nih = new_image.get_by_size(this.config.image_size).height;
+
+		new_img.css('right', ((w - niw)/2) + 'px');
+		new_img.css('top', ((h - nih)/2) + 'px');
+		
+		new_img.removeClass('no-disp');
 	},
 
 	window_resize_handler: function(){
 		var current_image = this.data_source.images[this.data_source.current_index];
 		var img = jQuery('.large-image');
 
-		var w = jQuery(window).width(); //window width
+		var w = this.win.width(); //window width
 		var dw = current_image.get_by_size(this.config.image_size).width; //original image width
 		
-		var h = jQuery(window).height(); //window height
+		var h = this.win.height(); //window height
 		var dh = current_image.get_by_size(this.config.image_size).height; //original image height
 
 		var ar = dw/dh; //image aspect ratio
@@ -282,8 +334,8 @@ Gallery.prototype = {
 		}
 
 		//center image on horizontal and vertical dimensions
-		img.css('left', ((jQuery(window).width() - img.width())/2) + 'px');
-		img.css('top', ((jQuery(window).height() - img.height())/2) + 'px');
+		img.css('left', ((this.win.width() - img.width())/2) + 'px');
+		img.css('top', ((this.win.height() - img.height())/2) + 'px');
 	},
 
 	/**
@@ -296,9 +348,8 @@ Gallery.prototype = {
 	hide_thumbnails_wrapper: function(){
 		if(!this.thumbnails_hidden){			
 			this.thumbnails_hidden = true;
-			var _twh = (-1)*(jQuery('.thumbnails-wrapper').height() + this.THUMBNAILS_WRAPPER_HEIGHT_ADDITION);
-			jQuery('.thumbnails-wrapper').animate({
-    			bottom: _twh
+			this.thumbnail_wrapper.animate({
+    			bottom: (-1)*(this.thumbnail_wrapper.height() + this.THUMBNAILS_WRAPPER_HEIGHT_ADDITION)
   			}, 300);
 		}	
 	},
@@ -312,7 +363,7 @@ Gallery.prototype = {
 	show_thumbnails_wrapper: function(){
 		if(this.thumbnails_hidden){			
 			this.thumbnails_hidden = false;
-			jQuery('.thumbnails-wrapper').animate({
+			this.thumbnail_wrapper.animate({
     			bottom: 0,
   			}, 300);
 		}	
@@ -326,16 +377,16 @@ Gallery.prototype = {
 	toggle_arrows: function(){
 		//hide previous arrow if current image is first in gallery	
 		if(this.data_source.is_current_first()){
-			jQuery('.arrow_previous').hide();
+			this.arrow_prev.hide();
 		}else{
-			jQuery('.arrow_previous').show();
+			this.arrow_prev.show();
 		}
 
 		//hide next arrow if current image is last in gallery
 		if(this.data_source.is_current_last()){
-			jQuery('.arrow_next').hide();
+			this.arrow_next.hide();
 		}else{
-			jQuery('.arrow_next').show();
+			this.arrow_next.show();
 		}
 	},	
 
@@ -393,7 +444,7 @@ DataSource.prototype = {
 	config: null,
 	images: null,
 
-	current_index: 0,
+	current_index: null,
 
 	init: function(config){
 		this.config = config;
