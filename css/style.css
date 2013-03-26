@@ -1,8 +1,6 @@
 html, body{
 	overflow: hidden;
 	background-color: #003366;
-
-	position: relative;
 }
 
 .large-image{
@@ -23,7 +21,7 @@ html, body{
 	overflow-y: none;
 	white-space: nowrap; 
 
-	background-color: #fff;
+	background-color: rgba(255, 255, 255, 0.2);
 	opacity: 0.9;
 	box-shadow: 0 0 5px #fff;
 }
@@ -33,7 +31,7 @@ html, body{
 	margin-right: 5px;
 	margin-left: 5px;
 
-	border: 1px solid #fff;
+	border: 2px solid rgba(255, 255, 255, 0.2);
 	border-radius: 5px;
 	box-shadow: 0 0 5px #fff;
 }
@@ -44,12 +42,8 @@ html, body{
 }
 
 .thumbnails-image-active, .thumbnails-image-active:hover{
-	border-color:  #036;
-	box-shadow: 0 0 5px #036;
-}
-
-.non-visible{
-	visibility: hidden;
+	border-color:  #fff;
+	box-shadow: 0 0 5px #fff;
 }
 
 .no-disp{

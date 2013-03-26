@@ -4,7 +4,8 @@ jQuery(document).ready(function(){
 		order: 'updated',
 		limit: 50,
 		thumbnail_size: 'XXS',
-		image_size: 'L'
+		image_size: 'L',
+		switch_duration: 300
 	});
 });
 
@@ -15,7 +16,10 @@ Gallery = function(config){
 Gallery.prototype = {
 	DEFAULT_THUMBNAIL_SIZE: 'XXS',
 	DEFAULT_IMAGE_SIZE: 'M',
+
 	AVAILABLE_SIZES: ['XXXS', 'XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'],
+
+	DEFAULT_SWITCH_DURATION: 300,
 
 	THUMBNAILS_WRAPPER_HEIGHT_ADDITION: 10, //Magick constant.
 
@@ -44,20 +48,36 @@ Gallery.prototype = {
 			this.config.image_size = this.DEFAULT_IMAGE_SIZE;
 		}
 		
+		if(this.config.switch_duration == undefined || 
+			this.config.switch_duration == null){
+			this.config.switch_duration = this.DEFAULT_SWITCH_DURATION;
+		}
+
 		var self = this;
 		this.win = jQuery(window);
 		this.data_source = new DataSource(this.config);
 		
 		var ds = this.data_source
 		ds.load_data()
-		.done(function(response) { 
-			ds.parse_data(response)
-				.done(function(){
-					self.draw_thumbnails();
-					self.draw_arrows();
-					self.switch_image_first();
-				});
-			});
+		.then(
+			function(response) { 
+				return ds.parse_data(response)
+			},
+			function() { 
+				alert('Can not load data from yandex API');
+			}
+		)
+		.then(
+			function(){
+				console.log('Data has been parsed');
+				self.draw_thumbnails();
+				self.draw_arrows();
+				self.switch_image_first();
+			},
+			function(){
+				alert('No data were retrieve from server');
+			}
+		);
 
 		//bind handler to window resize event for align 
 		//and resize image proportionally to the screen
@@ -171,6 +191,15 @@ Gallery.prototype = {
 		this.win.triggerHandler('mouseenter');	
 	},
 
+	/**
+	* Create image element for large image
+	* - set src with url of large size image
+	* - set attribute data-id with unique id of image
+	* - set attribute data-index with index of image in gallery
+	* - set width and height css properties
+	* - style this image by adding large-image class
+	* - hide image by adding no-disp class
+	**/
 	draw_large_image: function(index){
 		var image = this.data_source.images[index];
 
@@ -189,23 +218,35 @@ Gallery.prototype = {
 		return img;
 	},
 
+	/**
+	* Switch thumbnail in gallery
+	* In this method we should: 
+	* - remove thumbnails-image-active class from all thumbnails
+	* - find selected thumbnail by data-index custom attribute
+	* - add thumbnails-image-active class to selected thumbnail
+	**/
 	switch_thumbnail: function(index){
 		jQuery('.thumbnails-image').removeClass('thumbnails-image-active');
 		
-		jQuery('[data-index="' + index + '"]').addClass('thumbnails-image-active');
+		var active_thumbnail = jQuery('.thumbnails-image[data-index="' + index + '"]');
+		active_thumbnail.addClass('thumbnails-image-active');
 
 		//TODO implement correct scrolling for thumbnails wrapper on image switching
-		this.thumbnail_wrapper.scrollTo('[data-index="' + index + '"]', 300);
+		this.thumbnail_wrapper.scrollTo((active_thumbnail.offset().left + this.win.width()/2) + 'px', this.config.switch_duration);
 	},
 
+	/**
+	* Method for switching images in gallery
+	* It is suitable to divide this operation into 3 steps
+	**/
 	switch_image: function(index){
 		var self = this;
 		this.switch_image_step1(index)
-		.done(function(){
-			self.switch_image_step2(index)
-			.done(function(){
-				self.switch_image_step3(index)
-			});
+		.then(function(){
+			return self.switch_image_step2(index)	
+		})
+		.then(function(){
+			self.switch_image_step3(index)
 		});
 	},
 
@@ -218,13 +259,22 @@ Gallery.prototype = {
 	switch_image_first: function(){
 		var index = this.data_source.load_image_index();
 		var self = this;
-		this.switch_image_step1(index)
-		.done(function(){
+		this.switch_image_step1(index).done(function(){
 			self.switch_image_step2_0(index)			
 			self.switch_image_step3(index)			
 		});
 	},
 
+	/**
+	* At first step we should:
+	* - check if all transitions have been finished
+	* - check for index of image which we want to show next
+	* 	if index is out of model range or is the sam as current index we should not perform next steps
+	* - call method for switching thumbnails
+	* - draw new large image and hide it
+	* - add asynchronious callback for image loading
+	* (after image loading we will move to the next step)  
+	**/
 	switch_image_step1: function(index){
 		var deferred = jQuery.Deferred();
 		if(this.transition_execute_now || index < 0 
@@ -241,6 +291,22 @@ Gallery.prototype = {
 		return deferred.promise();
 	},
 
+	/**
+	* This is most important part of image switch operation
+	* In this method we should:
+	* - retrieve index of current displayed image in gallery
+	* - get image which we should switch to (model and DOM element)
+	* - get current displayed image (model and DOM element)
+	* - get window width and height
+	* - get original model width and height
+	* - detect direction by next and current indexes comparison
+	* - hide next image behind left or right screen border
+	* - align new image at center vertically
+	* - show new image by removing no-disp class
+	* - calculate new coordinates for new image and current image
+	* - run animations for show new image and hide current image
+	* - remove old image from DOM and move to final step 
+	**/
 	switch_image_step2: function(index){
 		var deferred = jQuery.Deferred();
 		var current_index = this.data_source.current_index;
@@ -268,7 +334,9 @@ Gallery.prototype = {
 
 		var config_old = {right: (direction > 0 ? w : (-1)*niw) + 'px'};		
 		
-		jQuery.when(old_img.animate(config_old, 300), new_img.animate(config_new, 300)).then(function(){
+		jQuery.when(old_img.animate(config_old, this.config.switch_duration), 
+					new_img.animate(config_new, this.config.switch_duration))
+		.then(function(){
 			old_img.remove();
 			deferred.resolve();
 		});
@@ -505,11 +573,20 @@ DataSource.prototype = {
 		return url;
 	},
 
+	/**
+	* Loads data from yandex API with JSONP
+	**/
 	load_data: function(){
+		console.log('Load data from API');
 		return jQuery.getJSON(this.create_url())
 	},
 
+	/**
+	* Parse data retrieved from yandex API
+	* and fill model
+	**/
 	parse_data: function(response){
+		console.log('Parse data from API');
 		var deferred = jQuery.Deferred(); 
 		var l = response.entries.length;
 
@@ -517,12 +594,11 @@ DataSource.prototype = {
 			this.images = new Array();
 			for(var i = 0; i < l; i++){
 				this.images[i] = new Image(response.entries[i].id, response.entries[i].img);
-			}			
+			}
+			deferred.resolve();			
 		}else{
-			//TODO something
+			deferred.reject();
 		}
-
-		deferred.resolve();
 		return deferred.promise();
 	},
 
