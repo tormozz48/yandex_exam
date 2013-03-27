@@ -32,6 +32,8 @@ Gallery.prototype = {
 	arrow_prev: null, //previous arrow div in jQuery wrapper
 	arrow_next: null, //next arrow div in jQuery wrapper
 
+	loader: null, //loader div
+
 	thumbnails_hidden: true,
 	transition_execute_now: false,
 
@@ -85,7 +87,7 @@ Gallery.prototype = {
 		}
 		
 		if(this.config.switch_duration == undefined || 
-			this.config.switch_duration == null){
+			this.config.switch_duration == null || !jQuery.isNumeric(this.config.switch_duration) || this.config.switch_duration < 0){
 			this.config.switch_duration = this.DEFAULT_SWITCH_DURATION;
 		}
 	},
@@ -285,8 +287,7 @@ Gallery.prototype = {
 			deferred.reject();
 		}else{
 			this.transition_execute_now = true;
-			this.switch_thumbnail(index);
-
+			this.show_loader();
 			this.draw_large_image(index).load(function(){
 				deferred.resolve(index);
 			});
@@ -336,6 +337,10 @@ Gallery.prototype = {
 
 		var config_old = {right: (direction > 0 ? w : (-1)*new_img.width()) + 'px'};		
 		
+		this.hide_loader();
+
+		this.switch_thumbnail(index);
+
 		jQuery.when(old_img.animate(config_old, this.config.switch_duration), 
 					new_img.animate(config_new, this.config.switch_duration))
 		.then(function(){
@@ -375,7 +380,10 @@ Gallery.prototype = {
 		
 		this.resize_image(img, image);
 		this.align_image(img);
-				
+		
+		this.hide_loader();
+		this.switch_thumbnail(index);
+
 		img.removeClass('no-disp');
 	},
 
@@ -463,6 +471,21 @@ Gallery.prototype = {
 		}	
 	},
 
+	show_loader: function(){
+		if(this.loader == null){
+			this.loader = jQuery('<div/>').addClass('loader').addClass('no-disp').appendTo('body');
+		}
+
+		this.loader.css('left', (this.win.width() - this.loader.width())/2 + 'px');
+		this.loader.css('top', (this.win.height() - this.loader.height())/2 + 'px');
+
+		this.loader.removeClass('no-disp');							
+	},
+
+	hide_loader: function(){
+		this.loader.addClass('no-disp');
+	},
+
 	/**
 	* Enable gallery arrows for switch to previous or next image
 	* Also we should check if current image is first or last in gallery
@@ -494,7 +517,7 @@ Gallery.prototype = {
 	**/
 	bind_key_switching: function(){
 		var self = this;
-		jQuery(window).keydown(function(e){
+		this.win.keydown(function(e){
             var key = e.charCode || e.keyCode || 0;
             if(key == 37 || key == 38 || key == 98 || key == 102){
             	self.switch_image(self.data_source.current_index - 1);
@@ -731,6 +754,17 @@ Image.prototype = {
 	* Get image version by size key
 	**/
 	get_by_size: function(size){
-		return this.sizes[size];
+		return (this.sizes[size] != undefined && this.sizes[size] != null) ? 
+				this.sizes[size] : this.get_largest_image();
+	},
+
+	get_largest_image: function(){
+		var largest_image = null;
+		for(var i in this.sizes){
+			if(largest_image == null || this.sizes[i].width > largest_image.width){
+				largest_image = this.sizes[i];
+			}
+		}
+		return largest_image;
 	}
 };

@@ -69,3 +69,14 @@ html, body{
 	right: 0;
 	background: url(../images/next.png) no-repeat;
 }
+
+.loader{
+	position: fixed;
+
+	width: 31px;
+	height: 31px;
+
+	z-index: 100;
+
+	background: url(../images/loader.gif) no-repeat;
+}
