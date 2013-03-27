@@ -36,22 +36,7 @@ Gallery.prototype = {
 	transition_execute_now: false,
 
 	init: function(config){
-		this.config = (config != undefined && config != null) ? config : {};
-		
-		if(this.config.thumbnail_size == undefined || 
-			this.config.thumbnail_size == null){
-			this.config.thumbnail_size = this.DEFAULT_THUMBNAIL_SIZE;
-		}
-
-		if(this.config.image_size == undefined || 
-			this.config.thumbnail_size == null){
-			this.config.image_size = this.DEFAULT_IMAGE_SIZE;
-		}
-		
-		if(this.config.switch_duration == undefined || 
-			this.config.switch_duration == null){
-			this.config.switch_duration = this.DEFAULT_SWITCH_DURATION;
-		}
+		this.parse_config(config);
 
 		var self = this;
 		this.win = jQuery(window);
@@ -72,6 +57,7 @@ Gallery.prototype = {
 				self.draw_thumbnails();
 				self.draw_arrows();
 				self.switch_image_first();
+				self.bind_key_switching();
 			},
 			function(){
 				alert('No data were retrieve from server');
@@ -83,6 +69,25 @@ Gallery.prototype = {
 		this.win.resize(function(){
 			self.window_resize_handler();
 		});	 
+	},
+
+	parse_config: function(config){
+		this.config = (config != undefined && config != null) ? config : {};
+		
+		if(this.config.thumbnail_size == undefined || 
+			this.config.thumbnail_size == null){
+			this.config.thumbnail_size = this.DEFAULT_THUMBNAIL_SIZE;
+		}
+
+		if(this.config.image_size == undefined || 
+			this.config.thumbnail_size == null){
+			this.config.image_size = this.DEFAULT_IMAGE_SIZE;
+		}
+		
+		if(this.config.switch_duration == undefined || 
+			this.config.switch_duration == null){
+			this.config.switch_duration = this.DEFAULT_SWITCH_DURATION;
+		}
 	},
 
 	/**
@@ -478,6 +483,26 @@ Gallery.prototype = {
 			this.arrow_next.show();
 		}
 	},	
+
+	/**
+	* Bind keypress event to window
+	* On this event we should get code of key which has been pressed
+	* If code of pressed key is equal to arrow left or arrow up or num pad 4 or num pad 8
+	* then we shoul switch gallery to previous image
+	* If code of pressed key is equal to arrow right or arrow down or num pad 6 or num pad 2
+	* then we shoul switch gallery to next image 
+	**/
+	bind_key_switching: function(){
+		var self = this;
+		jQuery(window).keydown(function(e){
+            var key = e.charCode || e.keyCode || 0;
+            if(key == 37 || key == 38 || key == 98 || key == 102){
+            	self.switch_image(self.data_source.current_index - 1);
+            }if(key == 39 || key == 40 || key == 100 || key == 104){
+            	self.switch_image(self.data_source.current_index - (-1));
+            }
+        });
+	},
 
 	/**
 	* This is not my solution
