@@ -29,11 +29,9 @@ Gallery.prototype = {
 	data_source: null,
 	thumbnail_wrapper: null, //thumbnail div in jQuery wrapper
 
-	arrow_prev: null, //previous arrow div in jQuery wrapper
-	arrow_next: null, //next arrow div in jQuery wrapper
+	arrows: null, //gallery arrows closure 
 
-	loader: null,
-	// loader: null, //loader div
+	loader: null, //loader closure
 
 	thumbnails_hidden: true,
 	transition_execute_now: false,
@@ -44,6 +42,7 @@ Gallery.prototype = {
 		var self = this;
 		this.win = jQuery(window);
 		this.loader = this.init_loader();
+		this.arrows = this.init_arrows();
 		this.data_source = new DataSource(this.config);
 		
 		var ds = this.data_source
@@ -59,7 +58,7 @@ Gallery.prototype = {
 		.then(
 			function(){
 				self.draw_thumbnails();
-				self.draw_arrows();
+				self.arrows.draw();
 				self.switch_image_first();
 				self.bind_key_switching();
 			},
@@ -94,111 +93,7 @@ Gallery.prototype = {
 		}
 	},
 
-	/**
-	* Draw thumbnails wrapper with all images and
-	* bind all neccessary events for it
-	**/
-	draw_thumbnails: function(){
-		var images = this.data_source.images;
-		var l = images.length;
-		var self = this;
-
-		if(l > 0){
-			
-			// create thumbnail wrapper div and append it to body
-			this.thumbnail_wrapper = jQuery('<div/>', {class: 'thumbnails-wrapper'}).appendTo('body');
-
-			// iterate throught images collection
-			// on each iteration we should
-			//- create image DOM element
-			//- add src, data-id, data-index attributes
-			//- add width and height css attributes
-			//- add style class for thumbnail
-			//- append image to thumbnail wrapper 
-			for(var i = 0; i < l; i++){
-				jQuery('<img/>')
-				.attr('src', images[i].get_by_size(this.config.thumbnail_size).href)
-				.attr('data-id', images[i].id)
-				.attr('data-index', i)
-				.css({
-					'width': images[i].get_by_size(this.config.thumbnail_size).width,
-					'height': images[i].get_by_size(this.config.thumbnail_size).height,
-				})
-				.addClass('thumbnails-image')
-				.appendTo(this.thumbnail_wrapper);
-			}
-
-			// hide thumbnail wrapper below bottom border of browser window
-			this.thumbnail_wrapper.css('bottom', 
-				(-1)*(this.thumbnail_wrapper.height() + this.THUMBNAILS_WRAPPER_HEIGHT_ADDITION));
-
-			// add mouse move event for window for hiding and showing thumbnails wrapper
-			// at this handler we should:
-			//- take current window height (h)
-			//- take current mouse cursor y position (y)
-			//- take thumbnails wrapper height (it can be different depending on gallery initial configuration setings)
-			//- calculate difference twh between h and y
-			//- depending on twh value we should show or hide thumbnail wrapper 	
-			this.win.mousemove(function(event){
-				var h = self.win.height();
-				var y = event.pageY;
-				var twh = self.thumbnail_wrapper.height();
-				if(h - y <= twh){
-					self.show_thumbnails_wrapper();
-				}else{
-					self.hide_thumbnails_wrapper();
-				}
-			});
-
-			// bind image switching handler for thumbnail image click event
-			jQuery('.thumbnails-image').on('click', function(){
-				self.switch_image(jQuery(this).attr('data-index'));
-			});
-
-			//bing mousewheel scrolling for thumbnail wrapper
-			this.bind_scrollable();
-		}
-	},
-
-	/**
-	* Draw side arrows for switching images to next or previous
-	**/
-	draw_arrows: function(){
-		var self = this;
-
-		//create div for previous arrow 
-		this.arrow_prev = jQuery('<div/>').addClass('arrow_previous').appendTo('body');
-		
-		//create div for next arrow 	
-		this.arrow_next = jQuery('<div/>').addClass('arrow_next').appendTo('body');
-		
-		// Bind mouse enter event to  window for enable gallery arrows	
-		this.win.mouseenter(function(){
-			self.toggle_arrows();
-		});
-
-		//hide both arrows on mouse leave window event
-		this.win.mouseleave(function(){
-			self.arrow_prev.hide();
-			self.arrow_next.hide();
-		});
-
-		// Bind click event on previous arrow div
-		// for switch to previous image in gallery
-		this.arrow_prev.click(function(){
-			self.switch_image(self.data_source.current_index - 1);
-		});
-
-		// Bind click event on nex arrow div
-		// for switch to next image in gallery		
-		this.arrow_next.click(function(){
-			self.switch_image(self.data_source.current_index - (-1));
-		});
-
-		//Immediately call method for enable gallery arrows
-		this.win.triggerHandler('mouseenter');	
-	},
-
+	
 	/**
 	* Create image element for large image
 	* - set src with url of large size image
@@ -365,7 +260,7 @@ Gallery.prototype = {
 	**/
 	switch_image_step3: function(index){				
 		this.data_source.current_index = index;
-		this.toggle_arrows();
+		this.arrows.toggle();
 		this.data_source.save_image_index();	
 		this.transition_execute_now = false;
 	},
@@ -446,6 +341,72 @@ Gallery.prototype = {
 	},
 
 	/**
+	* Draw thumbnails wrapper with all images and
+	* bind all neccessary events for it
+	**/
+	draw_thumbnails: function(){
+		var images = this.data_source.images;
+		var l = images.length;
+		var self = this;
+
+		if(l > 0){
+			
+			// create thumbnail wrapper div and append it to body
+			this.thumbnail_wrapper = jQuery('<div/>', {class: 'thumbnails-wrapper'}).appendTo('body');
+
+			// iterate throught images collection
+			// on each iteration we should
+			//- create image DOM element
+			//- add src, data-id, data-index attributes
+			//- add width and height css attributes
+			//- add style class for thumbnail
+			//- append image to thumbnail wrapper 
+			for(var i = 0; i < l; i++){
+				jQuery('<img/>')
+				.attr('src', images[i].get_by_size(this.config.thumbnail_size).href)
+				.attr('data-id', images[i].id)
+				.attr('data-index', i)
+				.css({
+					'width': images[i].get_by_size(this.config.thumbnail_size).width,
+					'height': images[i].get_by_size(this.config.thumbnail_size).height,
+				})
+				.addClass('thumbnails-image')
+				.appendTo(this.thumbnail_wrapper);
+			}
+
+			// hide thumbnail wrapper below bottom border of browser window
+			this.thumbnail_wrapper.css('bottom', 
+				(-1)*(this.thumbnail_wrapper.height() + this.THUMBNAILS_WRAPPER_HEIGHT_ADDITION));
+
+			// add mouse move event for window for hiding and showing thumbnails wrapper
+			// at this handler we should:
+			//- take current window height (h)
+			//- take current mouse cursor y position (y)
+			//- take thumbnails wrapper height (it can be different depending on gallery initial configuration setings)
+			//- calculate difference twh between h and y
+			//- depending on twh value we should show or hide thumbnail wrapper 	
+			this.win.mousemove(function(event){
+				var h = self.win.height();
+				var y = event.pageY;
+				var twh = self.thumbnail_wrapper.height();
+				if(h - y <= twh){
+					self.show_thumbnails_wrapper();
+				}else{
+					self.hide_thumbnails_wrapper();
+				}
+			});
+
+			// bind image switching handler for thumbnail image click event
+			jQuery('.thumbnails-image').on('click', function(){
+				self.switch_image(jQuery(this).attr('data-index'));
+			});
+
+			//bing mousewheel scrolling for thumbnail wrapper
+			this.bind_scrollable();
+		}
+	},
+
+	/**
 	* Method for hide thumbnails wrapper
 	* At first we should check if thumbnails wrapper is already in hidden state
 	* It is necessary for preventing multiple attempt to hiding
@@ -493,26 +454,73 @@ Gallery.prototype = {
 		};
 	},
 
-	/**
-	* Enable gallery arrows for switch to previous or next image
-	* Also we should check if current image is first or last in gallery
-	* and hide previous or next arrow
-	**/
-	toggle_arrows: function(){
-		//hide previous arrow if current image is first in gallery	
-		if(this.data_source.is_current_first()){
-			this.arrow_prev.hide();
-		}else{
-			this.arrow_prev.show();
-		}
+	init_arrows: function(){
+		var self = this;
+		var arrow_prev = null;
+		var arrow_next = null;	
 
-		//hide next arrow if current image is last in gallery
-		if(this.data_source.is_current_last()){
-			this.arrow_next.hide();
-		}else{
-			this.arrow_next.show();
-		}
-	},	
+		function arrows(){};
+
+		/**
+		* Draw side arrows for switching images to next or previous
+		**/
+		arrows.draw = function(){
+			//create div for previous arrow 
+			arrow_prev = jQuery('<div/>').addClass('arrow_previous').appendTo('body');
+			
+			//create div for next arrow 	
+			arrow_next = jQuery('<div/>').addClass('arrow_next').appendTo('body');
+			
+			// Bind mouse enter event to  window for enable gallery arrows	
+			self.win.mouseenter(function(){
+				arrows.toggle();
+			});
+
+			//hide both arrows on mouse leave window event
+			self.win.mouseleave(function(){
+				arrow_prev.hide();
+				arrow_next.hide();
+			});
+
+			// Bind click event on previous arrow div
+			// for switch to previous image in gallery
+			arrow_prev.click(function(){
+				self.switch_image(self.data_source.current_index - 1);
+			});
+
+			// Bind click event on nex arrow div
+			// for switch to next image in gallery		
+			arrow_next.click(function(){
+				self.switch_image(self.data_source.current_index - (-1));
+			});
+
+			//Immediately call method for enable gallery arrows
+			self.win.triggerHandler('mouseenter');
+		};
+
+		/**
+		* Enable gallery arrows for switch to previous or next image
+		* Also we should check if current image is first or last in gallery
+		* and hide previous or next arrow
+		**/
+		arrows.toggle = function(){
+			//hide previous arrow if current image is first in gallery	
+			if(self.data_source.is_current_first()){
+				arrow_prev.hide();
+			}else{
+				arrow_prev.show();
+			}
+
+			//hide next arrow if current image is last in gallery
+			if(self.data_source.is_current_last()){
+				arrow_next.hide();
+			}else{
+				arrow_next.show();
+			}
+		};
+
+		return arrows;
+	},
 
 	/**
 	* Bind keypress event to window
