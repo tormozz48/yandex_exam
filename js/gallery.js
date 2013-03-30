@@ -32,7 +32,8 @@ Gallery.prototype = {
 	arrow_prev: null, //previous arrow div in jQuery wrapper
 	arrow_next: null, //next arrow div in jQuery wrapper
 
-	loader: null, //loader div
+	loader: null,
+	// loader: null, //loader div
 
 	thumbnails_hidden: true,
 	transition_execute_now: false,
@@ -42,6 +43,7 @@ Gallery.prototype = {
 
 		var self = this;
 		this.win = jQuery(window);
+		this.loader = this.init_loader();
 		this.data_source = new DataSource(this.config);
 		
 		var ds = this.data_source
@@ -282,13 +284,16 @@ Gallery.prototype = {
 	**/
 	switch_image_step1: function(index){
 		var deferred = jQuery.Deferred();
+		var self = this;
 		if(this.transition_execute_now || index < 0 
 			|| index > this.data_source.images.length - 1 || index === this.data_source.current_index){
 			deferred.reject();
 		}else{
 			this.transition_execute_now = true;
-			this.show_loader();
+			// this.show_loader();
+			this.loader.show();
 			this.draw_large_image(index).load(function(){
+				self.loader.hide();
 				deferred.resolve(index);
 			});
 		}
@@ -337,7 +342,7 @@ Gallery.prototype = {
 
 		var config_old = {right: (direction > 0 ? w : (-1)*new_img.width()) + 'px'};		
 		
-		this.hide_loader();
+		// this.hide_loader();
 
 		this.switch_thumbnail(index);
 
@@ -381,7 +386,7 @@ Gallery.prototype = {
 		this.resize_image(img, image);
 		this.align_image(img);
 		
-		this.hide_loader();
+		// this.hide_loader();
 		this.switch_thumbnail(index);
 
 		img.removeClass('no-disp');
@@ -471,19 +476,21 @@ Gallery.prototype = {
 		}	
 	},
 
-	show_loader: function(){
-		if(this.loader == null){
-			this.loader = jQuery('<div/>').addClass('loader').addClass('no-disp').appendTo('body');
-		}
+	init_loader: function(){
+		var win = this.win;
+		var l = jQuery('<div/>').addClass('loader').addClass('no-disp').appendTo('body');
+		return {
+			show: function(){
+				l.css('left', (win.width() - l.width())/2 + 'px');
+				l.css('top', (win.height() - l.height())/2 + 'px');
 
-		this.loader.css('left', (this.win.width() - this.loader.width())/2 + 'px');
-		this.loader.css('top', (this.win.height() - this.loader.height())/2 + 'px');
+				l.removeClass('no-disp');
+			},
 
-		this.loader.removeClass('no-disp');							
-	},
-
-	hide_loader: function(){
-		this.loader.addClass('no-disp');
+			hide: function(){
+				l.addClass('no-disp');
+			}
+		};
 	},
 
 	/**
@@ -768,3 +775,4 @@ Image.prototype = {
 		return largest_image;
 	}
 };
+

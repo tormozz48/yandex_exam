@@ -4,26 +4,26 @@ html, body{
 }
 
 .large-image{
-	display: inline;
-	z-index: -1;
 	position: fixed;
+	z-index: -1;
+	display: inline;
 
 	border-radius: 10px;
 	box-shadow: 0 0 3px #fff;	
 }
 
 .thumbnails-wrapper{
-	width: 100%;
-	padding: 5px 0;
 	position: fixed;
 
 	overflow-x: auto;
 	overflow-y: none;
-	white-space: nowrap; 
+	padding: 5px 0;
+	width: 100%; 
 
 	background-color: rgba(255, 255, 255, 0.2);
-	opacity: 0.9;
 	box-shadow: 0 0 5px #fff;
+	white-space: nowrap;
+	opacity: 0.9;
 }
 
 .thumbnails-image{
@@ -73,10 +73,10 @@ html, body{
 .loader{
 	position: fixed;
 
+	z-index: 100;
+
 	width: 31px;
 	height: 31px;
-
-	z-index: 100;
 
 	background: url(../images/loader.gif) no-repeat;
 }
