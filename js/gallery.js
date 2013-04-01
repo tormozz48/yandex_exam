@@ -27,13 +27,11 @@ Gallery.prototype = {
 
 	win: null, //window object in jQuery wrapper
 	data_source: null,
-	thumbnail_wrapper: null, //thumbnail div in jQuery wrapper
 
+	thumbnails: null, //thumbnails panel
 	arrows: null, //gallery arrows closure 
-
 	loader: null, //loader closure
 
-	thumbnails_hidden: true,
 	transition_execute_now: false,
 
 	init: function(config){
@@ -41,6 +39,7 @@ Gallery.prototype = {
 
 		var self = this;
 		this.win = jQuery(window);
+		this.thumbnails = this.init_thumbnails();
 		this.loader = this.init_loader();
 		this.arrows = this.init_arrows();
 		this.data_source = new DataSource(this.config);
@@ -57,7 +56,7 @@ Gallery.prototype = {
 		)
 		.then(
 			function(){
-				self.draw_thumbnails();
+				self.thumbnails.draw();
 				self.arrows.draw();
 				self.switch_image_first();
 				self.bind_key_switching();
@@ -119,22 +118,6 @@ Gallery.prototype = {
 		.appendTo('body');
 
 		return img;
-	},
-
-	/**
-	* Switch thumbnail in gallery
-	* In this method we should: 
-	* - remove thumbnails-image-active class from all thumbnails
-	* - find selected thumbnail by data-index custom attribute
-	* - add thumbnails-image-active class to selected thumbnail
-	**/
-	switch_thumbnail: function(index){
-		jQuery('.thumbnails-image').removeClass('thumbnails-image-active');
-		
-		var active_thumbnail = jQuery('.thumbnails-image[data-index="' + index + '"]');
-		active_thumbnail.addClass('thumbnails-image-active');
-
-		this.thumbnail_wrapper.scrollTo('.thumbnails-image-active', this.config.switch_duration);
 	},
 
 	/**
@@ -239,7 +222,7 @@ Gallery.prototype = {
 		
 		// this.hide_loader();
 
-		this.switch_thumbnail(index);
+		this.thumbnails.switch(index);
 
 		jQuery.when(old_img.animate(config_old, this.config.switch_duration), 
 					new_img.animate(config_new, this.config.switch_duration))
@@ -282,7 +265,7 @@ Gallery.prototype = {
 		this.align_image(img);
 		
 		// this.hide_loader();
-		this.switch_thumbnail(index);
+		this.thumbnails.switch(index);
 
 		img.removeClass('no-disp');
 	},
@@ -340,114 +323,175 @@ Gallery.prototype = {
 		img.css('top', ((h - img.height())/2) + 'px');
 	},
 
-	/**
-	* Draw thumbnails wrapper with all images and
-	* bind all neccessary events for it
-	**/
-	draw_thumbnails: function(){
-		var images = this.data_source.images;
-		var l = images.length;
+	init_thumbnails: function(){
 		var self = this;
+		var wrapper = null;
+		var is_hidden = true;
 
-		if(l > 0){
-			
-			// create thumbnail wrapper div and append it to body
-			this.thumbnail_wrapper = jQuery('<div/>', {class: 'thumbnails-wrapper'}).appendTo('body');
+		function thumbnails(){};
 
-			// iterate throught images collection
-			// on each iteration we should
-			//- create image DOM element
-			//- add src, data-id, data-index attributes
-			//- add width and height css attributes
-			//- add style class for thumbnail
-			//- append image to thumbnail wrapper 
-			for(var i = 0; i < l; i++){
-				jQuery('<img/>')
-				.attr('src', images[i].get_by_size(this.config.thumbnail_size).href)
-				.attr('data-id', images[i].id)
-				.attr('data-index', i)
-				.css({
-					'width': images[i].get_by_size(this.config.thumbnail_size).width,
-					'height': images[i].get_by_size(this.config.thumbnail_size).height,
-				})
-				.addClass('thumbnails-image')
-				.appendTo(this.thumbnail_wrapper);
-			}
+		/**
+		* Draw thumbnails wrapper with all images and
+		* bind all neccessary events for it
+		**/
+		thumbnails.draw = function(){
+			var images = self.data_source.images;
+			var l = images.length;
 
-			// hide thumbnail wrapper below bottom border of browser window
-			this.thumbnail_wrapper.css('bottom', 
-				(-1)*(this.thumbnail_wrapper.height() + this.THUMBNAILS_WRAPPER_HEIGHT_ADDITION));
+			if(l > 0){
+				
+				// create thumbnail wrapper div and append it to body
+				wrapper = jQuery('<div/>', {class: 'thumbnails-wrapper'}).appendTo('body');
 
-			// add mouse move event for window for hiding and showing thumbnails wrapper
-			// at this handler we should:
-			//- take current window height (h)
-			//- take current mouse cursor y position (y)
-			//- take thumbnails wrapper height (it can be different depending on gallery initial configuration setings)
-			//- calculate difference twh between h and y
-			//- depending on twh value we should show or hide thumbnail wrapper 	
-			this.win.mousemove(function(event){
-				var h = self.win.height();
-				var y = event.pageY;
-				var twh = self.thumbnail_wrapper.height();
-				if(h - y <= twh){
-					self.show_thumbnails_wrapper();
-				}else{
-					self.hide_thumbnails_wrapper();
+				// iterate throught images collection
+				// on each iteration we should
+				//- create image DOM element
+				//- add src, data-id, data-index attributes
+				//- add width and height css attributes
+				//- add style class for thumbnail
+				//- append image to thumbnail wrapper 
+				for(var i = 0; i < l; i++){
+					jQuery('<img/>')
+					.attr('src', images[i].get_by_size(self.config.thumbnail_size).href)
+					.attr('data-id', images[i].id)
+					.attr('data-index', i)
+					.css({
+						'width': images[i].get_by_size(self.config.thumbnail_size).width,
+						'height': images[i].get_by_size(self.config.thumbnail_size).height,
+					})
+					.addClass('thumbnails-image')
+					.appendTo(wrapper);
 				}
-			});
 
-			// bind image switching handler for thumbnail image click event
-			jQuery('.thumbnails-image').on('click', function(){
-				self.switch_image(jQuery(this).attr('data-index'));
-			});
+				// hide thumbnail wrapper below bottom border of browser window
+				wrapper.css('bottom', (-1)*(wrapper.height() + self.THUMBNAILS_WRAPPER_HEIGHT_ADDITION));
 
-			//bing mousewheel scrolling for thumbnail wrapper
-			this.bind_scrollable();
-		}
+				// add mouse move event for window for hiding and showing thumbnails wrapper
+				// at this handler we should:
+				//- take current window height (h)
+				//- take current mouse cursor y position (y)
+				//- take thumbnails wrapper height (it can be different depending on gallery initial configuration setings)
+				//- calculate difference twh between h and y
+				//- depending on twh value we should show or hide thumbnail wrapper 	
+				self.win.mousemove(function(event){
+					var h = self.win.height();
+					var y = event.pageY;
+					var twh = wrapper.height();
+					if(h - y <= twh){
+						thumbnails.show();
+					}else{
+						thumbnails.hide();
+					}
+				});
+
+				// bind image switching handler for thumbnail image click event
+				jQuery('.thumbnails-image').on('click', function(){
+					self.switch_image(jQuery(this).attr('data-index'));
+				});
+
+				/**
+				* Bind mousewheel scrolling for thumbnail wrapper
+				* This is not my solution
+				* thanks to http://www.adomas.org/javascript-mouse-wheel/
+				**/
+				if (window.addEventListener){
+		        	window.addEventListener('DOMMouseScroll', thumbnails.scroll, false);
+		        }	
+				window.onmousewheel = document.onmousewheel = thumbnails.scroll;
+			}
+		};
+
+		/**
+		* Method for show thumbnails wrapper
+		* At first we should check if thumbnails wrapper is already in visible state
+		* It is necessary for preventing multiple attempt to show
+		* Finally we should animate css transition of bottom property to zero value
+		**/
+		thumbnails.show = function(){
+			if(is_hidden){			
+				is_hidden = false;
+				wrapper.animate({
+	    			bottom: 0,
+	  			}, 300);
+			}	
+		};
+
+		/**
+		* Method for hide thumbnails wrapper
+		* At first we should check if thumbnails wrapper is already in hidden state
+		* It is necessary for preventing multiple attempt to hiding
+		* Finally we should animate css transition of bottom property for hiding 
+		* thumbnails wrapper below bottom border of browser window
+		**/
+		thumbnails.hide = function(){
+			if(!is_hidden){			
+				is_hidden = true;
+				wrapper.animate({
+	    			bottom: (-1)*(wrapper.height() + self.THUMBNAILS_WRAPPER_HEIGHT_ADDITION)
+	  			}, 300);
+			}
+		};
+
+		/**
+		* Switch thumbnail in gallery
+		* In this method we should: 
+		* - remove thumbnails-image-active class from all thumbnails
+		* - find selected thumbnail by data-index custom attribute
+		* - add thumbnails-image-active class to selected thumbnail
+		**/
+		thumbnails.switch = function(index){
+			jQuery('.thumbnails-image').removeClass('thumbnails-image-active');		
+			jQuery('.thumbnails-image[data-index="' + index + '"]').addClass('thumbnails-image-active');
+
+			wrapper.scrollTo('.thumbnails-image-active', self.config.switch_duration);
+		};
+
+		/**
+		* This is not my solution
+		* thanks to http://www.adomas.org/javascript-mouse-wheel/
+		**/
+		thumbnails.scroll = function(event){
+			var delta = 0;
+	        if(!event){
+                event = window.event;
+	        }        
+	        if(event.wheelDelta) { 
+                delta = event.wheelDelta/120;
+	        }else if (event.detail) {
+                delta = -event.detail/3;
+	        }
+	        
+	        if(delta){
+                wrapper.scrollTo(delta > 0 ? '+=50px' : '-=50px', 30);
+	        }        
+	        if(event.preventDefault){
+                event.preventDefault();
+	        }        
+			event.returnValue = false;
+		};
+
+		return thumbnails;
 	},
 
 	/**
-	* Method for hide thumbnails wrapper
-	* At first we should check if thumbnails wrapper is already in hidden state
-	* It is necessary for preventing multiple attempt to hiding
-	* Finally we should animate css transition of bottom property for hiding 
-	* thumbnails wrapper below bottom border of browser window
+	* Init loader module for loading indicator
 	**/
-	hide_thumbnails_wrapper: function(){
-		if(!this.thumbnails_hidden){			
-			this.thumbnails_hidden = true;
-			this.thumbnail_wrapper.animate({
-    			bottom: (-1)*(this.thumbnail_wrapper.height() + this.THUMBNAILS_WRAPPER_HEIGHT_ADDITION)
-  			}, 300);
-		}	
-	},
-
-	/**
-	* Method for show thumbnails wrapper
-	* At first we should check if thumbnails wrapper is already in visible state
-	* It is necessary for preventing multiple attempt to show
-	* Finally we should animate css transition of bottom property to zero value
-	**/
-	show_thumbnails_wrapper: function(){
-		if(this.thumbnails_hidden){			
-			this.thumbnails_hidden = false;
-			this.thumbnail_wrapper.animate({
-    			bottom: 0,
-  			}, 300);
-		}	
-	},
-
 	init_loader: function(){
 		var win = this.win;
 		var l = jQuery('<div/>').addClass('loader').addClass('no-disp').appendTo('body');
+		
 		return {
+
+			// show loading indicator 
 			show: function(){
+				//align loading indicator at center of the browser screen
 				l.css('left', (win.width() - l.width())/2 + 'px');
 				l.css('top', (win.height() - l.height())/2 + 'px');
 
 				l.removeClass('no-disp');
 			},
 
+			// hide loading indicator
 			hide: function(){
 				l.addClass('no-disp');
 			}
@@ -540,41 +584,6 @@ Gallery.prototype = {
             	self.switch_image(self.data_source.current_index - (-1));
             }
         });
-	},
-
-	/**
-	* This is not my solution
-	* thanks to http://www.adomas.org/javascript-mouse-wheel/
-	**/
-	bind_scrollable: function(){
-		if (window.addEventListener){
-        	window.addEventListener('DOMMouseScroll', this.on_thumbnails_scroll, false);
-        }	
-		window.onmousewheel = document.onmousewheel = this.on_thumbnails_scroll;
-	},
-
-	/**
-	* This is not my solution
-	* thanks to http://www.adomas.org/javascript-mouse-wheel/
-	**/
-	on_thumbnails_scroll: function(event){
-		var delta = 0;
-        if(!event){
-                event = window.event;
-        }        
-        if(event.wheelDelta) { 
-                delta = event.wheelDelta/120;
-        }else if (event.detail) {
-                delta = -event.detail/3;
-        }
-        
-        if(delta){
-                jQuery('.thumbnails-wrapper').scrollTo(delta > 0 ? '+=50px' : '-=50px', 30);
-        }        
-        if(event.preventDefault){
-                event.preventDefault();
-        }        
-		event.returnValue = false;
 	}
 },
 
