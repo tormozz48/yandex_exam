@@ -1,10 +1,13 @@
 jQuery(document).ready(function(){
 	new Gallery({
-		url: 'http://api-fotki.yandex.ru/api/top/',
-		order: 'updated',
-		limit: 50,
+		data_source: {
+			url: 'http://api-fotki.yandex.ru/api/top/',
+			order: 'updated',
+			limit: 50
+		},	
 		thumbnail_size: 'XXS',
 		image_size: 'L',
+		switch_direction: 'left',
 		switch_duration: 300
 	});
 });
@@ -18,6 +21,8 @@ Gallery.prototype = {
 	DEFAULT_IMAGE_SIZE: 'M',
 
 	AVAILABLE_SIZES: ['XXXS', 'XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'],
+
+	SWITCH_DIRECTIONS: ['left', 'bottom', 'right', 'top'], 
 
 	DEFAULT_SWITCH_DURATION: 300,
 
@@ -74,20 +79,29 @@ Gallery.prototype = {
 	},
 
 	parse_config: function(config){
-		this.config = (config != undefined && config != null) ? config : {};
+		this.config = (config != undefined && config != null) ? config : {data_source: {}};
 		
-		if(this.config.thumbnail_size == undefined || 
-			this.config.thumbnail_size == null){
+		//verify thumbnails size
+		if(this.config.thumbnail_size == undefined || this.config.thumbnail_size == null 
+			|| !jQuery.inArray(this.config.thumbnail_size, this.AVAILABLE_SIZES)){
 			this.config.thumbnail_size = this.DEFAULT_THUMBNAIL_SIZE;
 		}
 
-		if(this.config.image_size == undefined || 
-			this.config.thumbnail_size == null){
+		//verify image size
+		if(this.config.image_size == undefined || this.config.thumbnail_size == null
+			|| !jQuery.inArray(this.config.image_size, this.AVAILABLE_SIZES)){
 			this.config.image_size = this.DEFAULT_IMAGE_SIZE;
 		}
 		
-		if(this.config.switch_duration == undefined || 
-			this.config.switch_duration == null || !jQuery.isNumeric(this.config.switch_duration) || this.config.switch_duration < 0){
+		//verify switch direction
+		if(this.config.switch_direction == undefined || this.config.switch_direction == null
+			|| !jQuery.inArray(this.config.switch_direction, this.SWITCH_DIRECTIONS)){
+			this.config.switch_direction == this.SWITCH_DIRECTIONS[0];
+		}
+
+		//verify switch duration
+		if(this.config.switch_duration == undefined || this.config.switch_duration == null 
+			|| !jQuery.isNumeric(this.config.switch_duration) || this.config.switch_duration < 0){
 			this.config.switch_duration = this.DEFAULT_SWITCH_DURATION;
 		}
 	},
@@ -211,16 +225,60 @@ Gallery.prototype = {
 
 		var direction = index > current_index ? 1 : -1;
 
-		new_img.css('right', (direction > 0 ? (-1)*new_img.width() : w) + 'px');
-		new_img.css('top', ((h - new_img.height())/2) + 'px');
+		//forward from right to left
+		if(this.config.switch_direction == this.SWITCH_DIRECTIONS[0]){
+
+			new_img.css('right', (direction > 0 ? (-1)*new_img.width() : w) + 'px');
+			new_img.css('top', ((h - new_img.height())/2) + 'px');
 		
+		//forward from top to bottom
+		}else if(this.config.switch_direction == this.SWITCH_DIRECTIONS[1]){
+
+			new_img.css('top', (direction > 0 ? (-1)*new_img.height() : h) + 'px');
+			new_img.css('right', ((w - new_img.width())/2) + 'px');
+		
+		//forward from left to right
+		}else if(this.config.switch_direction == this.SWITCH_DIRECTIONS[2]){
+
+			new_img.css('left', (direction > 0 ? (-1)*new_img.width() : w) + 'px');
+			new_img.css('top', ((h - new_img.height())/2) + 'px');
+		
+		//forward from bottom to top
+		}else if(this.config.switch_direction == this.SWITCH_DIRECTIONS[3]){
+
+			new_img.css('bottom', (direction > 0 ? (-1)*new_img.height() : h) + 'px');
+			new_img.css('right', ((w - new_img.width())/2) + 'px');
+		}
+
 		new_img.removeClass('no-disp');
 
-		var config_new = {right: ((w - new_img.width())/2) + 'px'};
+		var config_new = null;
+		var config_old = null;
 
-		var config_old = {right: (direction > 0 ? w : (-1)*new_img.width()) + 'px'};		
+		//forward from right to left
+		if(this.config.switch_direction == this.SWITCH_DIRECTIONS[0]){
+
+			config_new = {right: ((w - new_img.width())/2) + 'px'};
+			config_old = {right: (direction > 0 ? w : (-1)*new_img.width()) + 'px'};
 		
-		// this.hide_loader();
+		//forward from top to bottom
+		}else if(this.config.switch_direction == this.SWITCH_DIRECTIONS[1]){
+
+			config_new = {top: ((h - new_img.height())/2) + 'px'};
+			config_old = {top: (direction > 0 ? h : (-1)*new_img.height()) + 'px'};
+		
+		//forward from left to right
+		}else if(this.config.switch_direction == this.SWITCH_DIRECTIONS[2]){
+
+			config_new = {left: ((w - new_img.width())/2) + 'px'};
+			config_old = {left: (direction > 0 ? w : (-1)*new_img.width()) + 'px'};
+		
+		//forward from bottom to top
+		}else if(this.config.switch_direction == this.SWITCH_DIRECTIONS[3]){
+
+			config_new = {bottom: ((h - new_img.height())/2) + 'px'};
+			config_old = {bottom: (direction > 0 ? h : (-1)*new_img.height()) + 'px'};
+		}		
 
 		this.thumbnails.switch(index);
 
@@ -268,20 +326,6 @@ Gallery.prototype = {
 		this.thumbnails.switch(index);
 
 		img.removeClass('no-disp');
-	},
-
-	/**
-	* This is handler for window resize event
-	* In this method we should:
-	* - get window width and height
-	* - resize image if necessary
-	* - align image horizontally and vertically by setting new left and top css properties
-	**/
-	window_resize_handler: function(){
-		var current_image = this.data_source.images[this.data_source.current_index];
-		var img = jQuery('.large-image');
-		this.resize_image(img, current_image);
-		this.align_image(img);	
 	},
 
 	/**
@@ -567,6 +611,20 @@ Gallery.prototype = {
 	},
 
 	/**
+	* This is handler for window resize event
+	* In this method we should:
+	* - get window width and height
+	* - resize image if necessary
+	* - align image horizontally and vertically by setting new left and top css properties
+	**/
+	window_resize_handler: function(){
+		var current_image = this.data_source.images[this.data_source.current_index];
+		var img = jQuery('.large-image');
+		this.resize_image(img, current_image);
+		this.align_image(img);	
+	},
+
+	/**
 	* Bind keypress event to window
 	* On this event we should get code of key which has been pressed
 	* If code of pressed key is equal to arrow left or arrow up or num pad 4 or num pad 8
@@ -610,7 +668,7 @@ DataSource.prototype = {
 	current_index: null,
 
 	init: function(config){
-		this.config = config;
+		this.config = config.data_source;
 	},
 
 	/**
