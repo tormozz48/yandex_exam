@@ -1,9 +1,11 @@
 jQuery(document).ready(function(){
 	new Gallery({
 		data_source: {
-			url: 'http://api-fotki.yandex.ru/api/top/',
+			// url: 'http://api-fotki.yandex.ru/api/podhistory/'
+			// url: 'http://api-fotki.yandex.ru/api/top/',
+			url: 'http://api-fotki.yandex.ru/api/recent/',
 			order: 'updated',
-			limit: 50
+			limit: 100
 		},	
 		thumbnail_size: 'XXS',
 		image_size: 'L',
@@ -62,6 +64,7 @@ Gallery.prototype = {
 		.then(
 			function(){
 				self.thumbnails.draw();
+				self.draw_large_images(0);
 				self.arrows.draw();
 				self.switch_image_first();
 				self.bind_key_switching();
@@ -134,6 +137,16 @@ Gallery.prototype = {
 		return img;
 	},
 
+	draw_large_images: function(index){
+		var self = this;
+		this.draw_large_image(index).load(function(){
+			index++;
+			if(index < self.data_source.images.length){
+				self.draw_large_images(index);
+			}			
+		});
+	},
+
 	/**
 	* Method for switching images in gallery
 	* It is suitable to divide this operation into 3 steps
@@ -182,12 +195,17 @@ Gallery.prototype = {
 			deferred.reject();
 		}else{
 			this.transition_execute_now = true;
-			// this.show_loader();
-			this.loader.show();
-			this.draw_large_image(index).load(function(){
-				self.loader.hide();
+			
+			var new_img = jQuery('.large-image[data-id="' + this.data_source.images[index].id + '"]');
+			if(new_img.length > 0){
 				deferred.resolve(index);
-			});
+			}else{
+				this.loader.show();
+				this.draw_large_image(index).load(function(){
+					self.loader.hide();
+					deferred.resolve(index);
+				});
+			}
 		}
 		return deferred.promise();
 	},
@@ -285,7 +303,8 @@ Gallery.prototype = {
 		jQuery.when(old_img.animate(config_old, this.config.switch_duration), 
 					new_img.animate(config_new, this.config.switch_duration))
 		.then(function(){
-			old_img.remove();
+			// old_img.remove();
+			old_img.addClass('no-disp');
 			deferred.resolve();
 		});
 		return deferred.promise();
