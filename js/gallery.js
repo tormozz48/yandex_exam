@@ -80,7 +80,7 @@ Gallery.prototype = {
 
 	parse_config: function(config){
 		this.config = (config != undefined && config != null) ? config : {data_source: {}};
-		
+
 		//verify thumbnails size
 		if(this.config.thumbnail_size == undefined || this.config.thumbnail_size == null 
 			|| !jQuery.inArray(this.config.thumbnail_size, this.AVAILABLE_SIZES)){
@@ -362,9 +362,21 @@ Gallery.prototype = {
 		var w = this.win.width(); //window width
 		var h = this.win.height(); //window height
 
+		var ch = (w - img.width())/2; //center alignment point horizontal
+		var cv = (h - img.height())/2; //center alignment point vertical
+
 		//center image on horizontal and vertical dimensions
-		img.css('right', ((w - img.width())/2) + 'px');
-		img.css('top', ((h - img.height())/2) + 'px');
+		if(this.config.switch_direction == this.SWITCH_DIRECTIONS[0]
+			|| this.config.switch_direction == this.SWITCH_DIRECTIONS[1]){
+			img.css('right', ch + 'px');
+			img.css('top', cv + 'px');
+		} else if(this.config.switch_direction == this.SWITCH_DIRECTIONS[2]){
+			img.css('left', ch + 'px');
+			img.css('top', cv + 'px');
+		} else if(this.config.switch_direction == this.SWITCH_DIRECTIONS[3]){
+			img.css('right', ch + 'px');
+			img.css('bottom', cv + 'px');
+		}	
 	},
 
 	init_thumbnails: function(){
@@ -487,7 +499,11 @@ Gallery.prototype = {
 			jQuery('.thumbnails-image').removeClass('thumbnails-image-active');		
 			jQuery('.thumbnails-image[data-index="' + index + '"]').addClass('thumbnails-image-active');
 
-			wrapper.scrollTo('.thumbnails-image-active', self.config.switch_duration);
+			// wrapper.scrollTo('.thumbnails-image-active', self.config.switch_duration);
+			
+			//fix for make active thumbnail aligned at center horizontally after scrolling
+			var pos = index*jQuery('.thumbnails-image-active').outerWidth(true) - self.win.width()/2;
+			wrapper.scrollTo(pos > 0 ? pos + 'px' : 0, self.config.switch_duration);
 		};
 
 		/**
@@ -851,3 +867,4 @@ Image.prototype = {
 	}
 };
 
+	
