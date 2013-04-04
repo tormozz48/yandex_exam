@@ -182,12 +182,17 @@ Gallery.prototype = {
 			deferred.reject();
 		}else{
 			this.transition_execute_now = true;
-			// this.show_loader();
-			this.loader.show();
-			this.draw_large_image(index).load(function(){
-				self.loader.hide();
+			
+			var img = jQuery('.large-image[data-id="' + this.data_source.images[index].id + '"]');
+			if(img.length > 0){
 				deferred.resolve(index);
-			});
+			}else{
+				this.loader.show();
+				this.draw_large_image(index).load(function(){
+					self.loader.hide();
+					deferred.resolve(index);
+				});
+			}
 		}
 		return deferred.promise();
 	},
@@ -285,7 +290,7 @@ Gallery.prototype = {
 		jQuery.when(old_img.animate(config_old, this.config.switch_duration), 
 					new_img.animate(config_new, this.config.switch_duration))
 		.then(function(){
-			old_img.remove();
+			old_img.addClass('no-disp');
 			deferred.resolve();
 		});
 		return deferred.promise();
