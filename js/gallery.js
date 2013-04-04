@@ -1,9 +1,10 @@
 jQuery(document).ready(function(){
 	new Gallery({
 		data_source: {
-			url: 'http://api-fotki.yandex.ru/api/top/',
+			//url: 'http://api-fotki.yandex.ru/api/top/',
+			url: 'http://api-fotki.yandex.ru/api/recent/',
 			order: 'updated',
-			limit: 50
+			limit: 100
 		},	
 		thumbnail_size: 'XXS',
 		image_size: 'L',
@@ -62,6 +63,7 @@ Gallery.prototype = {
 		.then(
 			function(){
 				self.thumbnails.draw();
+				self.draw_images();
 				self.arrows.draw();
 				self.switch_image_first();
 				self.bind_key_switching();
@@ -134,6 +136,19 @@ Gallery.prototype = {
 		return img;
 	},
 
+	draw_images: function(){
+		var images = this.data_source.images;
+		var l = images.length;
+		if(l > 0){
+			for(var i = 0; i < l; i++){
+				this.draw_large_image(i).load(function(){
+					var data_index = jQuery(this).attr('data-index');
+					jQuery('.thumbnails-image[data-index="' + data_index + '"]').removeClass('no-disp');
+				});	
+			}
+		}	
+	},
+
 	/**
 	* Method for switching images in gallery
 	* It is suitable to divide this operation into 3 steps
@@ -182,12 +197,16 @@ Gallery.prototype = {
 			deferred.reject();
 		}else{
 			this.transition_execute_now = true;
-			// this.show_loader();
-			this.loader.show();
-			this.draw_large_image(index).load(function(){
-				self.loader.hide();
+			var img = jQuery('.large-image[data-id="' + this.data_source.images[index].id + '"]');
+			if(img.length > 0){
 				deferred.resolve(index);
-			});
+			}else{
+				this.loader.show();
+				this.draw_large_image(index).load(function(){
+					self.loader.hide();
+					deferred.resolve(index);
+				});
+			}	
 		}
 		return deferred.promise();
 	},
@@ -285,7 +304,7 @@ Gallery.prototype = {
 		jQuery.when(old_img.animate(config_old, this.config.switch_duration), 
 					new_img.animate(config_new, this.config.switch_duration))
 		.then(function(){
-			old_img.remove();
+			old_img.addClass('no-disp');
 			deferred.resolve();
 		});
 		return deferred.promise();
@@ -415,6 +434,7 @@ Gallery.prototype = {
 						'width': images[i].get_by_size(self.config.thumbnail_size).width,
 						'height': images[i].get_by_size(self.config.thumbnail_size).height,
 					})
+					.addClass('no-disp')
 					.addClass('thumbnails-image')
 					.appendTo(wrapper);
 				}
