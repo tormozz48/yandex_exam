@@ -71,8 +71,6 @@ Gallery.prototype = {
 			}
 		);
 
-		//bind handler to window resize event for align 
-		//and resize image proportionally to the screen
 		this.win.resize(function(){
 			self.window_resize_handler();
 		});	 
@@ -106,16 +104,6 @@ Gallery.prototype = {
 		}
 	},
 
-	
-	/**
-	* Create image element for large image
-	* - set src with url of large size image
-	* - set attribute data-id with unique id of image
-	* - set attribute data-index with index of image in gallery
-	* - set width and height css properties
-	* - style this image by adding large-image class
-	* - hide image by adding no-disp class
-	**/
 	draw_large_image: function(index){
 		var image = this.data_source.images[index];
 
@@ -123,6 +111,8 @@ Gallery.prototype = {
 		.attr('src', image.get_by_size(this.config.image_size).href)
 		.attr('data-id', image.id)
 		.attr('data-index', index)
+		.attr('alt', image.title)
+		.attr('title', image.title)
 		.css({
 			'width': image.get_by_size(this.config.image_size).width,
 			'height': image.get_by_size(this.config.image_size).height,
@@ -134,10 +124,6 @@ Gallery.prototype = {
 		return img;
 	},
 
-	/**
-	* Method for switching images in gallery
-	* It is suitable to divide this operation into 3 steps
-	**/
 	switch_image: function(index){
 		var self = this;
 		this.switch_image_step1(index)
@@ -149,12 +135,6 @@ Gallery.prototype = {
 		});
 	},
 
-	/**
-	* This is alternate method for switching for next image
-	* It is special because it is called only at first time after gallery appear
-	* first and third steps in this scenarious are same to with default swith_image method
-	* but second step is different 
-	**/
 	switch_image_first: function(){
 		var index = this.data_source.load_image_index();
 		var self = this;
@@ -164,16 +144,6 @@ Gallery.prototype = {
 		});
 	},
 
-	/**
-	* At first step we should:
-	* - check if all transitions have been finished
-	* - check for index of image which we want to show next
-	* 	if index is out of model range or is the sam as current index we should not perform next steps
-	* - call method for switching thumbnails
-	* - draw new large image and hide it
-	* - add asynchronious callback for image loading
-	* (after image loading we will move to the next step)  
-	**/
 	switch_image_step1: function(index){
 		var deferred = jQuery.Deferred();
 		var self = this;
@@ -197,22 +167,6 @@ Gallery.prototype = {
 		return deferred.promise();
 	},
 
-	/**
-	* This is most important part of image switch operation
-	* In this method we should:
-	* - retrieve index of current displayed image in gallery
-	* - get image which we should switch to (model and DOM element)
-	* - get current displayed image (model and DOM element)
-	* - get window width and height
-	* - get original model width and height
-	* - detect direction by next and current indexes comparison
-	* - hide next image behind left or right screen border
-	* - align new image at center vertically
-	* - show new image by removing no-disp class
-	* - calculate new coordinates for new image and current image
-	* - run animations for show new image and hide current image
-	* - remove old image from DOM and move to final step 
-	**/
 	switch_image_step2: function(index){
 		var deferred = jQuery.Deferred();
 		var current_index = this.data_source.current_index;
@@ -230,25 +184,21 @@ Gallery.prototype = {
 
 		var direction = index > current_index ? 1 : -1;
 
-		//forward from right to left
 		if(this.config.switch_direction == this.SWITCH_DIRECTIONS[0]){
 
 			new_img.css('right', (direction > 0 ? (-1)*new_img.width() : w) + 'px');
 			new_img.css('top', ((h - new_img.height())/2) + 'px');
 		
-		//forward from top to bottom
 		}else if(this.config.switch_direction == this.SWITCH_DIRECTIONS[1]){
 
 			new_img.css('top', (direction > 0 ? (-1)*new_img.height() : h) + 'px');
 			new_img.css('right', ((w - new_img.width())/2) + 'px');
 		
-		//forward from left to right
 		}else if(this.config.switch_direction == this.SWITCH_DIRECTIONS[2]){
 
 			new_img.css('left', (direction > 0 ? (-1)*new_img.width() : w) + 'px');
 			new_img.css('top', ((h - new_img.height())/2) + 'px');
 		
-		//forward from bottom to top
 		}else if(this.config.switch_direction == this.SWITCH_DIRECTIONS[3]){
 
 			new_img.css('bottom', (direction > 0 ? (-1)*new_img.height() : h) + 'px');
@@ -260,25 +210,21 @@ Gallery.prototype = {
 		var config_new = null;
 		var config_old = null;
 
-		//forward from right to left
 		if(this.config.switch_direction == this.SWITCH_DIRECTIONS[0]){
 
 			config_new = {right: ((w - new_img.width())/2) + 'px'};
 			config_old = {right: (direction > 0 ? w : (-1)*new_img.width()) + 'px'};
 		
-		//forward from top to bottom
 		}else if(this.config.switch_direction == this.SWITCH_DIRECTIONS[1]){
 
 			config_new = {top: ((h - new_img.height())/2) + 'px'};
 			config_old = {top: (direction > 0 ? h : (-1)*new_img.height()) + 'px'};
 		
-		//forward from left to right
 		}else if(this.config.switch_direction == this.SWITCH_DIRECTIONS[2]){
 
 			config_new = {left: ((w - new_img.width())/2) + 'px'};
 			config_old = {left: (direction > 0 ? w : (-1)*new_img.width()) + 'px'};
 		
-		//forward from bottom to top
 		}else if(this.config.switch_direction == this.SWITCH_DIRECTIONS[3]){
 
 			config_new = {bottom: ((h - new_img.height())/2) + 'px'};
@@ -296,14 +242,6 @@ Gallery.prototype = {
 		return deferred.promise();
 	},
 
-	/**
-	* This is a final part of switching to new image
-	* In this method we should:
-	* - set current index filed to index of new image
-	* - toggle arrows for hide or display arrows depending on current_index value
-	* - save current image state to cookies
-	* - finish switching and unlocking ui
-	**/
 	switch_image_step3: function(index){				
 		this.data_source.current_index = index;
 		this.arrows.toggle();
@@ -311,15 +249,6 @@ Gallery.prototype = {
 		this.transition_execute_now = false;
 	},
 
-	/**
-	* This is second part of switching to new image
-	* but only at first time.
-	* In this method we should:
-	* - get window width and height
-	* - get new image original width and height
-	* - align new image on center horizontally and vertically
-	* - show new image by removing no-disp class from it 
-	**/
 	switch_image_step2_0: function(index){
 		var image = this.data_source.images[index];
 		var img = jQuery('.large-image[data-id="' + image.id + '"]');
@@ -333,12 +262,6 @@ Gallery.prototype = {
 		img.removeClass('no-disp');
 	},
 
-	/**
-	* Method for resizing image if window size is less then original image size 	
-	* - get image original width and height
-	* - calculate aspect ration of image dimensions 
-	* - resize image if it width or height is less then window width o height
-	**/
 	resize_image: function(img, model){
 		var w = this.win.width(); //window width
 		var h = this.win.height(); //window height
@@ -360,9 +283,6 @@ Gallery.prototype = {
 		}
 	},
 
-	/**
-	* Align image on center of screen by setting left and top css properties
-	**/
 	align_image: function(img){
 		var w = this.win.width(); //window width
 		var h = this.win.height(); //window height
@@ -370,7 +290,6 @@ Gallery.prototype = {
 		var ch = (w - img.width())/2; //center alignment point horizontal
 		var cv = (h - img.height())/2; //center alignment point vertical
 
-		//center image on horizontal and vertical dimensions
 		if(this.config.switch_direction == this.SWITCH_DIRECTIONS[0]
 			|| this.config.switch_direction == this.SWITCH_DIRECTIONS[1]){
 			img.css('right', ch + 'px');
@@ -391,29 +310,18 @@ Gallery.prototype = {
 
 		function thumbnails(){};
 
-		/**
-		* Draw thumbnails wrapper with all images and
-		* bind all neccessary events for it
-		**/
 		thumbnails.draw = function(){
 			var images = self.data_source.images;
 			var l = images.length;
 
 			if(l > 0){
-				
-				// create thumbnail wrapper div and append it to body
 				wrapper = jQuery('<div/>', {class: 'thumbnails-wrapper'}).appendTo('body');
 
-				// iterate throught images collection
-				// on each iteration we should
-				//- create image DOM element
-				//- add src, data-id, data-index attributes
-				//- add width and height css attributes
-				//- add style class for thumbnail
-				//- append image to thumbnail wrapper 
 				for(var i = 0; i < l; i++){
 					jQuery('<img/>')
 					.attr('src', images[i].get_by_size(self.config.thumbnail_size).href)
+					.attr('alt', images[i].title)
+					.attr('title', images[i].title)
 					.attr('data-id', images[i].id)
 					.attr('data-index', i)
 					.css({
@@ -424,16 +332,8 @@ Gallery.prototype = {
 					.appendTo(wrapper);
 				}
 
-				// hide thumbnail wrapper below bottom border of browser window
 				wrapper.css('bottom', (-1)*(wrapper.height() + self.THUMBNAILS_WRAPPER_HEIGHT_ADDITION));
-
-				// add mouse move event for window for hiding and showing thumbnails wrapper
-				// at this handler we should:
-				//- take current window height (h)
-				//- take current mouse cursor y position (y)
-				//- take thumbnails wrapper height (it can be different depending on gallery initial configuration setings)
-				//- calculate difference twh between h and y
-				//- depending on twh value we should show or hide thumbnail wrapper 	
+ 	
 				self.win.mousemove(function(event){
 					var h = self.win.height();
 					var y = event.pageY;
@@ -445,16 +345,10 @@ Gallery.prototype = {
 					}
 				});
 
-				// bind image switching handler for thumbnail image click event
 				jQuery('.thumbnails-image').on('click', function(){
 					self.switch_image(jQuery(this).attr('data-index'));
 				});
 
-				/**
-				* Bind mousewheel scrolling for thumbnail wrapper
-				* This is not my solution
-				* thanks to http://www.adomas.org/javascript-mouse-wheel/
-				**/
 				if (window.addEventListener){
 		        	window.addEventListener('DOMMouseScroll', thumbnails.scroll, false);
 		        }	
@@ -462,12 +356,6 @@ Gallery.prototype = {
 			}
 		};
 
-		/**
-		* Method for show thumbnails wrapper
-		* At first we should check if thumbnails wrapper is already in visible state
-		* It is necessary for preventing multiple attempt to show
-		* Finally we should animate css transition of bottom property to zero value
-		**/
 		thumbnails.show = function(){
 			if(is_hidden){			
 				is_hidden = false;
@@ -477,13 +365,6 @@ Gallery.prototype = {
 			}	
 		};
 
-		/**
-		* Method for hide thumbnails wrapper
-		* At first we should check if thumbnails wrapper is already in hidden state
-		* It is necessary for preventing multiple attempt to hiding
-		* Finally we should animate css transition of bottom property for hiding 
-		* thumbnails wrapper below bottom border of browser window
-		**/
 		thumbnails.hide = function(){
 			if(!is_hidden){			
 				is_hidden = true;
@@ -493,28 +374,14 @@ Gallery.prototype = {
 			}
 		};
 
-		/**
-		* Switch thumbnail in gallery
-		* In this method we should: 
-		* - remove thumbnails-image-active class from all thumbnails
-		* - find selected thumbnail by data-index custom attribute
-		* - add thumbnails-image-active class to selected thumbnail
-		**/
 		thumbnails.switch = function(index){
 			jQuery('.thumbnails-image').removeClass('thumbnails-image-active');		
 			jQuery('.thumbnails-image[data-index="' + index + '"]').addClass('thumbnails-image-active');
 
-			// wrapper.scrollTo('.thumbnails-image-active', self.config.switch_duration);
-			
-			//fix for make active thumbnail aligned at center horizontally after scrolling
 			var pos = index*jQuery('.thumbnails-image-active').outerWidth(true) - self.win.width()/2;
 			wrapper.scrollTo(pos > 0 ? pos + 'px' : 0, self.config.switch_duration);
 		};
 
-		/**
-		* This is not my solution
-		* thanks to http://www.adomas.org/javascript-mouse-wheel/
-		**/
 		thumbnails.scroll = function(event){
 			var delta = 0;
 	        if(!event){
@@ -538,16 +405,12 @@ Gallery.prototype = {
 		return thumbnails;
 	},
 
-	/**
-	* Init loader module for loading indicator
-	**/
 	init_loader: function(){
 		var win = this.win;
 		var l = jQuery('<div/>').addClass('loader').addClass('no-disp').appendTo('body');
 		
 		return {
-
-			// show loading indicator 
+ 
 			show: function(){
 				//align loading indicator at center of the browser screen
 				l.css('left', (win.width() - l.width())/2 + 'px');
@@ -556,7 +419,6 @@ Gallery.prototype = {
 				l.removeClass('no-disp');
 			},
 
-			// hide loading indicator
 			hide: function(){
 				l.addClass('no-disp');
 			}
@@ -570,48 +432,31 @@ Gallery.prototype = {
 
 		function arrows(){};
 
-		/**
-		* Draw side arrows for switching images to next or previous
-		**/
 		arrows.draw = function(){
-			//create div for previous arrow 
 			arrow_prev = jQuery('<div/>').addClass('arrow_previous').appendTo('body');
-			
-			//create div for next arrow 	
+				
 			arrow_next = jQuery('<div/>').addClass('arrow_next').appendTo('body');
-			
-			// Bind mouse enter event to  window for enable gallery arrows	
+				
 			self.win.mouseenter(function(){
 				arrows.toggle();
 			});
 
-			//hide both arrows on mouse leave window event
 			self.win.mouseleave(function(){
 				arrow_prev.hide();
 				arrow_next.hide();
 			});
 
-			// Bind click event on previous arrow div
-			// for switch to previous image in gallery
 			arrow_prev.click(function(){
 				self.switch_image(self.data_source.current_index - 1);
 			});
-
-			// Bind click event on nex arrow div
-			// for switch to next image in gallery		
+		
 			arrow_next.click(function(){
 				self.switch_image(self.data_source.current_index - (-1));
 			});
 
-			//Immediately call method for enable gallery arrows
 			self.win.triggerHandler('mouseenter');
 		};
 
-		/**
-		* Enable gallery arrows for switch to previous or next image
-		* Also we should check if current image is first or last in gallery
-		* and hide previous or next arrow
-		**/
 		arrows.toggle = function(){
 			//hide previous arrow if current image is first in gallery	
 			if(self.data_source.is_current_first()){
@@ -631,13 +476,6 @@ Gallery.prototype = {
 		return arrows;
 	},
 
-	/**
-	* This is handler for window resize event
-	* In this method we should:
-	* - get window width and height
-	* - resize image if necessary
-	* - align image horizontally and vertically by setting new left and top css properties
-	**/
 	window_resize_handler: function(){
 		var current_image = this.data_source.images[this.data_source.current_index];
 		var img = jQuery('.large-image');
@@ -645,14 +483,6 @@ Gallery.prototype = {
 		this.align_image(img);	
 	},
 
-	/**
-	* Bind keypress event to window
-	* On this event we should get code of key which has been pressed
-	* If code of pressed key is equal to arrow left or arrow up or num pad 4 or num pad 8
-	* then we shoul switch gallery to previous image
-	* If code of pressed key is equal to arrow right or arrow down or num pad 6 or num pad 2
-	* then we shoul switch gallery to next image 
-	**/
 	bind_key_switching: function(){
 		var self = this;
 		this.win.keydown(function(e){
@@ -692,21 +522,15 @@ DataSource.prototype = {
 		this.config = config.data_source;
 	},
 
-	/**
-	* Creates url for retreiving data from yandex photo hosting
-	* url + order + / + ?limit=limit + & + format=json + & + callback=? 
-	**/
 	create_url: function(){
 		var url = null;
 
-		//get url from config or set default url
 		if(this.config.url != undefined && this.config.url != null){
 			url = this.config.url;
 		}else{
 			this.config.url = this.DEFAULT_URL;
 		}
 
-		//get order from cofig or set default order
 		if(this.config.order != undefined && this.config.order != null && 
 			jQuery.inArray(this.config.order, this.ORDERS)){
 			url += this.config.order;
@@ -716,7 +540,6 @@ DataSource.prototype = {
 
 		url += '/';
 
-		//get limit from config or set default limit
 		var limit = null;
 		if(this.config.limit != undefined && this.config.order != null &&
 			jQuery.isNumeric(this.config.limit) && this.config.limit > 0){
@@ -731,17 +554,10 @@ DataSource.prototype = {
 		return url;
 	},
 
-	/**
-	* Loads data from yandex API with JSONP
-	**/
 	load_data: function(){
 		return jQuery.getJSON(this.create_url())
 	},
 
-	/**
-	* Parse data retrieved from yandex API
-	* and fill model
-	**/
 	parse_data: function(response){
 		var deferred = jQuery.Deferred(); 
 		var l = response.entries.length;
@@ -749,7 +565,7 @@ DataSource.prototype = {
 		if(l > 0){
 			this.images = new Array();
 			for(var i = 0; i < l; i++){
-				this.images[i] = new Image(response.entries[i].id, response.entries[i].img);
+				this.images[i] = new Image(response.entries[i].id, response.entries[i].title, response.entries[i].img);
 			}
 			deferred.resolve();			
 		}else{
@@ -758,9 +574,6 @@ DataSource.prototype = {
 		return deferred.promise();
 	},
 
-	/**
-	* Get index of image in gallery by unique image id attribute
-	**/
 	get_index_by_id: function(id){
 		var index = -1;
 		if(this.images != null && this.images.length > 0){
@@ -773,32 +586,20 @@ DataSource.prototype = {
 		}
 		return index;
 	},
-
-	/**
-	* Method for check if current selected image is first in collection
-	**/	
+	
 	is_current_first: function(){
 		return this.current_index == 0;
 	},
 
-	/**
-	* Method for check if current selected image is last in collection
-	**/
 	is_current_last: function(){	
 		return (this.images != null && this.images.length > 0) ? this.current_index == this.images.length - 1 : true;			
 	},
 
-	/**
-	* Save unique id of current selected image to cookies
-	**/
 	save_image_index: function(){
 		var image = this.images[this.current_index];
 		this.create_cookie(this.COOKIE_NAME, image.id, 7);
 	},
 
-	/**
-	* Load index of image which we should switch to after gallery initializtion
-	**/
 	load_image_index: function(){
 		var index = 0;
 		var id = this.read_cookie(this.COOKIE_NAME);
@@ -811,9 +612,6 @@ DataSource.prototype = {
 		return index;
 	},
 
-	/**
-	* It is not my solution. Thank to http://www.quirksmode.org/js/cookies.html
-	**/
 	create_cookie: function(name,value,days) {
 		if (days) {
 			var date = new Date();
@@ -824,9 +622,6 @@ DataSource.prototype = {
 		document.cookie = name+"="+value+expires+"; path=/";
 	},
 
-	/**
-	* It is not my solution. Thank to http://www.quirksmode.org/js/cookies.html
-	**/
 	read_cookie: function(name) {
 		var nameEQ = name + "=";
 		var ca = document.cookie.split(';');
@@ -839,23 +634,22 @@ DataSource.prototype = {
 	}
 };
 
-Image = function(id, sizes){
-	this.init(id, sizes);
+Image = function(id, title, sizes){
+	this.init(id, title, sizes);
 };
 
 Image.prototype = {
 	
 	id: null,
+	title: null,
 	sizes: null,
 
-	init: function(id, sizes){
+	init: function(id, title, sizes){
 		this.id = id;
+		this.title = title;
 		this.sizes = sizes;
 	},
 
-	/**
-	* Get image version by size key
-	**/
 	get_by_size: function(size){
 		return (this.sizes[size] != undefined && this.sizes[size] != null) ? 
 				this.sizes[size] : this.get_largest_image();
